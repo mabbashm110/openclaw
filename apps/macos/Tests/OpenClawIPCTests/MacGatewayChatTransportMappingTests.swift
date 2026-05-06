@@ -23,6 +23,7 @@ struct MacGatewayChatTransportMappingTests {
             features: [:],
             snapshot: snapshot,
             pluginsurfaceurls: nil,
+            canvashosturl: nil,
             auth: [:],
             policy: [:])
 

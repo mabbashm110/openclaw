@@ -198,6 +198,24 @@ class GatewaySession(
 
   fun currentCanvasHostUrl(): String? = pluginSurfaceUrls["canvas"]
 
+  suspend fun refreshCanvasHostUrl(timeoutMs: Long = 8_000): String? {
+    val refreshed =
+      refreshPluginSurfaceUrl(
+        method = "node.pluginSurface.refresh",
+        params = buildJsonObject { put("surface", JsonPrimitive("canvas")) },
+        timeoutMs = timeoutMs,
+      )
+        ?: refreshPluginSurfaceUrl(
+          method = "node.canvas.capability.refresh",
+          params = null,
+          timeoutMs = timeoutMs,
+        )
+    if (!refreshed.isNullOrBlank()) {
+      pluginSurfaceUrls = pluginSurfaceUrls + ("canvas" to refreshed)
+    }
+    return refreshed
+  }
+
   fun currentMainSessionKey(): String? = mainSessionKey
 
   suspend fun sendNodeEvent(
@@ -215,6 +233,29 @@ class GatewaySession(
     } catch (err: Throwable) {
       Log.w("OpenClawGateway", "node.event failed: ${err::class.java.simpleName}")
       false
+    }
+  }
+
+  private suspend fun refreshPluginSurfaceUrl(
+    method: String,
+    params: JsonElement?,
+    timeoutMs: Long,
+  ): String? {
+    val conn = currentConnection ?: return null
+    return try {
+      val res = conn.request(method, params, timeoutMs)
+      if (!res.ok) return null
+      val obj = res.payloadJson?.let { json.parseToJsonElement(it).asObjectOrNull() } ?: return null
+      val raw =
+        obj["pluginSurfaceUrls"]
+          .asObjectOrNull()
+          ?.get("canvas")
+          .asStringOrNull()
+          ?: obj["canvasHostUrl"].asStringOrNull()
+      normalizeCanvasHostUrl(raw, conn.endpoint, isTlsConnection = conn.tls != null)
+    } catch (err: Throwable) {
+      Log.d("OpenClawGateway", "$method failed: ${err.message ?: err::class.java.simpleName}")
+      null
     }
   }
 
@@ -288,12 +329,12 @@ class GatewaySession(
   )
 
   private inner class Connection(
-    private val endpoint: GatewayEndpoint,
+    val endpoint: GatewayEndpoint,
     private val token: String?,
     private val bootstrapToken: String?,
     private val password: String?,
     private val options: GatewayConnectOptions,
-    private val tls: GatewayTlsParams?,
+    val tls: GatewayTlsParams?,
   ) {
     private val connectDeferred = CompletableDeferred<Unit>()
     private val closedDeferred = CompletableDeferred<Unit>()
@@ -569,15 +610,19 @@ class GatewaySession(
             }
           }
       }
-      pluginSurfaceUrls =
-        obj["pluginSurfaceUrls"]
-          .asObjectOrNull()
-          ?.mapNotNull { (surface, value) ->
-            normalizeCanvasHostUrl(value.asStringOrNull(), endpoint, isTlsConnection = tls != null)
-              ?.let { normalized -> surface to normalized }
+      val rawPluginSurfaceUrls = obj["pluginSurfaceUrls"].asObjectOrNull()
+      val normalizedPluginSurfaceUrls =
+        rawPluginSurfaceUrls?.mapNotNull { (surface, value) ->
+          normalizeCanvasHostUrl(value.asStringOrNull(), endpoint, isTlsConnection = tls != null)
+            ?.let { normalized -> surface to normalized }
+        } ?: emptyList()
+      pluginSurfaceUrls = normalizedPluginSurfaceUrls.toMap()
+      if ("canvas" !in pluginSurfaceUrls) {
+        normalizeCanvasHostUrl(obj["canvasHostUrl"].asStringOrNull(), endpoint, isTlsConnection = tls != null)
+          ?.let { legacyCanvasHostUrl ->
+            pluginSurfaceUrls = pluginSurfaceUrls + ("canvas" to legacyCanvasHostUrl)
           }
-          ?.toMap()
-          ?: emptyMap()
+      }
       val sessionDefaults =
         obj["snapshot"]
           .asObjectOrNull()

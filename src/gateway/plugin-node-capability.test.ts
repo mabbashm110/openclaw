@@ -3,6 +3,8 @@ import {
   buildPluginNodeCapabilityScopedHostUrl,
   hasAuthorizedPluginNodeCapability,
   normalizePluginNodeCapabilityScopedUrl,
+  refreshClientPluginNodeCapability,
+  replacePluginNodeCapabilityInScopedHostUrl,
   setClientPluginNodeCapability,
 } from "./plugin-node-capability.js";
 import type { GatewayWsClient } from "./server/ws-types.js";
@@ -51,6 +53,15 @@ describe("plugin node capability helpers", () => {
     });
   });
 
+  test("replaces scoped capability tokens without nesting capability prefixes", () => {
+    expect(
+      replacePluginNodeCapabilityInScopedHostUrl(
+        "http://127.0.0.1:18789/__openclaw__/cap/old-token/__openclaw__/a2ui/",
+        "new token",
+      ),
+    ).toBe("http://127.0.0.1:18789/__openclaw__/cap/new%20token/__openclaw__/a2ui");
+  });
+
   test("marks malformed scoped urls without authorizing a path capability", () => {
     const normalized = normalizePluginNodeCapabilityScopedUrl("/__openclaw__/cap/broken");
     expect(normalized.scopedPath).toBe(true);
@@ -76,6 +87,29 @@ describe("plugin node capability helpers", () => {
     expect(client.pluginNodeCapabilities).toEqual({
       canvas: { capability: "canvas-token", expiresAtMs: 100 },
       files: { capability: "files-token", expiresAtMs: 200 },
+    });
+  });
+
+  test("refreshes client plugin surface url and stored capability", () => {
+    const client = makeClient({
+      pluginSurfaceUrls: {
+        canvas: "http://127.0.0.1:18789/__openclaw__/cap/old-token",
+      },
+    });
+    const refreshed = refreshClientPluginNodeCapability({
+      client,
+      surface: { surface: "canvas", ttlMs: 100 },
+      nowMs: 1_000,
+    });
+    expect(refreshed?.surface).toBe("canvas");
+    expect(refreshed?.expiresAtMs).toBe(1_100);
+    expect(refreshed?.capability).toEqual(expect.any(String));
+    expect(refreshed?.scopedUrl).toContain("/__openclaw__/cap/");
+    expect(refreshed?.scopedUrl).not.toContain("old-token/__openclaw__/cap/");
+    expect(client.pluginSurfaceUrls?.canvas).toBe(refreshed?.scopedUrl);
+    expect(client.pluginNodeCapabilities?.canvas).toEqual({
+      capability: refreshed?.capability,
+      expiresAtMs: 1_100,
     });
   });
 

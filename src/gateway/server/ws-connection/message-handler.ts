@@ -1338,6 +1338,7 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
             });
           }
         }
+        const canvasHostUrl = pluginSurfaceUrls.canvas;
         const usesSharedGatewayAuth =
           authMethod === "token" || authMethod === "password" || authMethod === "trusted-proxy";
         const sharedGatewaySessionGeneration = usesSharedGatewayAuth
@@ -1486,6 +1487,7 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           features: { methods: gatewayMethods, events },
           snapshot,
           ...(Object.keys(pluginSurfaceUrls).length > 0 ? { pluginSurfaceUrls } : {}),
+          ...(canvasHostUrl ? { canvasHostUrl } : {}),
           auth: {
             role,
             scopes: helloOkAuthScopes,

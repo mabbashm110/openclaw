@@ -33,6 +33,7 @@ import {
 } from "../node-command-policy.js";
 import { applyPluginNodeInvokePolicy } from "../node-invoke-plugin-policy.js";
 import { sanitizeNodeInvokeParamsForForwarding } from "../node-invoke-sanitize.js";
+import { refreshClientPluginNodeCapability } from "../plugin-node-capability.js";
 import {
   type ConnectParams,
   ErrorCodes,
@@ -65,7 +66,7 @@ import {
   respondUnavailableOnThrow,
   safeParseJson,
 } from "./nodes.helpers.js";
-import type { GatewayRequestContext } from "./shared-types.js";
+import type { GatewayClient, GatewayRequestContext, RespondFn } from "./shared-types.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 export {
@@ -137,6 +138,55 @@ function isForbiddenBrowserProxyMutation(params: unknown): boolean {
   const method = (normalizeOptionalString(candidate.method) ?? "").toUpperCase();
   const path = normalizeOptionalString(candidate.path) ?? "";
   return Boolean(method && path && isPersistentBrowserProxyMutation(method, path));
+}
+
+function normalizePluginSurfaceRefreshParams(params: unknown): { surface: string } | undefined {
+  if (!params || typeof params !== "object") {
+    return undefined;
+  }
+  const surface = normalizeOptionalString((params as { surface?: unknown }).surface);
+  if (!surface) {
+    return undefined;
+  }
+  return { surface };
+}
+
+function respondRefreshedPluginSurface(params: {
+  surface: string;
+  client: GatewayClient | null;
+  respond: RespondFn;
+  legacyCanvasPayload?: boolean;
+}) {
+  const refreshed = params.client
+    ? refreshClientPluginNodeCapability({
+        client: params.client,
+        surface: { surface: params.surface },
+      })
+    : undefined;
+  if (!refreshed) {
+    params.respond(
+      false,
+      undefined,
+      errorShape(ErrorCodes.UNAVAILABLE, `${params.surface} plugin surface unavailable`),
+    );
+    return;
+  }
+  params.respond(
+    true,
+    params.legacyCanvasPayload
+      ? {
+          canvasCapability: refreshed.capability,
+          canvasCapabilityExpiresAtMs: refreshed.expiresAtMs,
+          canvasHostUrl: refreshed.scopedUrl,
+          pluginSurfaceUrls: { [refreshed.surface]: refreshed.scopedUrl },
+        }
+      : {
+          surface: refreshed.surface,
+          pluginSurfaceUrls: { [refreshed.surface]: refreshed.scopedUrl },
+          expiresAtMs: refreshed.expiresAtMs,
+        },
+    undefined,
+  );
 }
 
 async function resolveDirectNodePushConfig() {
@@ -840,6 +890,26 @@ export const nodeHandlers: GatewayRequestHandlers = {
         return;
       }
       respond(true, { ts: Date.now(), ...node }, undefined);
+    });
+  },
+  "node.pluginSurface.refresh": async ({ params, respond, client }) => {
+    const parsed = normalizePluginSurfaceRefreshParams(params);
+    if (!parsed) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "surface required"));
+      return;
+    }
+    respondRefreshedPluginSurface({
+      surface: parsed.surface,
+      client,
+      respond,
+    });
+  },
+  "node.canvas.capability.refresh": async ({ respond, client }) => {
+    respondRefreshedPluginSurface({
+      surface: "canvas",
+      client,
+      respond,
+      legacyCanvasPayload: true,
     });
   },
   "node.pending.pull": async ({ params, respond, client, context }) => {

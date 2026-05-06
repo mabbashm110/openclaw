@@ -111,6 +111,12 @@ actor GatewayConnection {
 
     private var subscribers: [UUID: AsyncStream<GatewayPush>.Continuation] = [:]
     private var lastSnapshot: HelloOk?
+    private var canvasPluginSurfaceUrlOverride: String?
+
+    private struct PluginSurfaceRefreshResponse: Decodable {
+        let pluginSurfaceUrls: [String: AnyCodable]?
+        let canvasHostUrl: String?
+    }
 
     private struct LossyDecodable<Value: Decodable>: Decodable {
         let value: Value?
@@ -309,14 +315,54 @@ actor GatewayConnection {
         self.configuredURL = nil
         self.configuredToken = nil
         self.lastSnapshot = nil
+        self.canvasPluginSurfaceUrlOverride = nil
     }
 
     func canvasPluginSurfaceUrl() async -> String? {
+        if let override = self.canvasPluginSurfaceUrlOverride {
+            let trimmed = override.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            if !trimmed.isEmpty { return trimmed }
+        }
         guard let snapshot = self.lastSnapshot else { return nil }
-        let trimmed =
-            (snapshot.pluginsurfaceurls?["canvas"]?.value as? String)?
-            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
+        let raw = (snapshot.pluginsurfaceurls?["canvas"]?.value as? String) ?? snapshot.canvashosturl
+        let trimmed = raw?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    @discardableResult
+    func refreshCanvasPluginSurfaceUrl(timeoutMs: Double = 8000) async -> String? {
+        if let refreshed = await self.refreshPluginSurfaceUrl(
+            method: "node.pluginSurface.refresh",
+            params: ["surface": AnyCodable("canvas")],
+            timeoutMs: timeoutMs)
+        {
+            return refreshed
+        }
+        return await self.refreshPluginSurfaceUrl(
+            method: "node.canvas.capability.refresh",
+            params: nil,
+            timeoutMs: timeoutMs)
+    }
+
+    private func refreshPluginSurfaceUrl(
+        method: String,
+        params: [String: AnyCodable]?,
+        timeoutMs: Double) async -> String?
+    {
+        do {
+            let data = try await self.requestRaw(method: method, params: params, timeoutMs: timeoutMs)
+            let decoded = try self.decoder.decode(PluginSurfaceRefreshResponse.self, from: data)
+            let raw = (decoded.pluginSurfaceUrls?["canvas"]?.value as? String) ?? decoded.canvasHostUrl
+            let trimmed = raw?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
+            if !trimmed.isEmpty {
+                self.canvasPluginSurfaceUrlOverride = trimmed
+            }
+            return trimmed.isEmpty ? nil : trimmed
+        } catch {
+            gatewayConnectionLogger.debug(
+                "\(method, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     private func sessionDefaultString(_ defaults: [String: OpenClawProtocol.AnyCodable]?, key: String) -> String {
@@ -368,6 +414,7 @@ actor GatewayConnection {
     private func broadcast(_ push: GatewayPush) {
         if case let .snapshot(snapshot) = push {
             self.lastSnapshot = snapshot
+            self.canvasPluginSurfaceUrlOverride = nil
             if let mainSessionKey = self.cachedMainSessionKey() {
                 Task { @MainActor in
                     WorkActivityStore.shared.setMainSessionKey(mainSessionKey)

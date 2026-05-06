@@ -154,7 +154,7 @@ final class CanvasManager {
         guard case let .snapshot(snapshot) = push else { return }
         let raw =
             (snapshot.pluginsurfaceurls?["canvas"]?.value as? String)?
-            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
+                .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
         if raw.isEmpty {
             Self.logger.debug("canvas plugin surface URL missing in gateway snapshot")
         } else {

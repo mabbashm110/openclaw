@@ -89,6 +89,7 @@ export const HelloOkSchema = Type.Object(
     ),
     snapshot: SnapshotSchema,
     pluginSurfaceUrls: Type.Optional(Type.Record(NonEmptyString, NonEmptyString)),
+    canvasHostUrl: Type.Optional(NonEmptyString),
     auth: Type.Object(
       {
         deviceToken: Type.Optional(NonEmptyString),

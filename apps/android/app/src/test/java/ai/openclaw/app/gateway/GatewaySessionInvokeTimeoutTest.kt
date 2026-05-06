@@ -39,5 +39,4 @@ class GatewaySessionInvokeTimeoutTest {
     assertEquals(120_000L, resolveInvokeResultAckTimeoutMs(121_000L))
     assertEquals(120_000L, resolveInvokeResultAckTimeoutMs(Long.MAX_VALUE))
   }
-
 }

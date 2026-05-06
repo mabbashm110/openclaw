@@ -12,6 +12,7 @@ export type PluginNodeCapabilitySurface = {
 };
 
 export type PluginNodeCapabilityClient = {
+  pluginSurfaceUrls?: Record<string, string>;
   pluginNodeCapabilities?: Record<string, { capability: string; expiresAtMs: number }>;
 };
 
@@ -54,6 +55,39 @@ export function buildPluginNodeCapabilityScopedHostUrl(
     const trimmedPath = url.pathname.replace(/\/+$/, "");
     const prefix = `${PLUGIN_NODE_CAPABILITY_PATH_PREFIX}/${encodeURIComponent(normalizedCapability)}`;
     url.pathname = `${trimmedPath}${prefix}`;
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
+export function replacePluginNodeCapabilityInScopedHostUrl(
+  scopedUrl: string,
+  capability: string,
+): string | undefined {
+  const normalizedCapability = normalizeCapability(capability);
+  if (!normalizedCapability) {
+    return undefined;
+  }
+  try {
+    const url = new URL(scopedUrl);
+    const prefix = `${PLUGIN_NODE_CAPABILITY_PATH_PREFIX}/`;
+    const markerStart = url.pathname.indexOf(prefix);
+    if (markerStart < 0) {
+      return buildPluginNodeCapabilityScopedHostUrl(scopedUrl, normalizedCapability);
+    }
+    const capabilityStart = markerStart + prefix.length;
+    const nextSlashIndex = url.pathname.indexOf("/", capabilityStart);
+    const capabilityEnd = nextSlashIndex >= 0 ? nextSlashIndex : url.pathname.length;
+    if (capabilityEnd <= capabilityStart) {
+      return undefined;
+    }
+    url.pathname =
+      url.pathname.slice(0, capabilityStart) +
+      encodeURIComponent(normalizedCapability) +
+      url.pathname.slice(capabilityEnd);
     url.search = "";
     url.hash = "";
     return url.toString().replace(/\/$/, "");
@@ -126,6 +160,49 @@ export function setClientPluginNodeCapability(params: {
   params.client.pluginNodeCapabilities[surface] = {
     capability: params.capability,
     expiresAtMs: params.expiresAtMs,
+  };
+}
+
+export function refreshClientPluginNodeCapability(params: {
+  client: PluginNodeCapabilityClient;
+  surface: PluginNodeCapabilitySurface;
+  nowMs?: number;
+}):
+  | {
+      surface: string;
+      capability: string;
+      expiresAtMs: number;
+      scopedUrl: string;
+    }
+  | undefined {
+  const surface = normalizeSurface(params.surface.surface);
+  if (!surface) {
+    return undefined;
+  }
+  const existingUrl = params.client.pluginSurfaceUrls?.[surface];
+  if (!existingUrl) {
+    return undefined;
+  }
+  const capability = mintPluginNodeCapabilityToken();
+  const nowMs = params.nowMs ?? Date.now();
+  const expiresAtMs = nowMs + resolvePluginNodeCapabilityTtlMs(params.surface);
+  const scopedUrl = replacePluginNodeCapabilityInScopedHostUrl(existingUrl, capability);
+  if (!scopedUrl) {
+    return undefined;
+  }
+  params.client.pluginSurfaceUrls ??= {};
+  params.client.pluginSurfaceUrls[surface] = scopedUrl;
+  setClientPluginNodeCapability({
+    client: params.client,
+    surface: params.surface,
+    capability,
+    expiresAtMs,
+  });
+  return {
+    surface,
+    capability,
+    expiresAtMs,
+    scopedUrl,
   };
 }
 

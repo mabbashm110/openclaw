@@ -99,6 +99,7 @@ public struct HelloOk: Codable, Sendable {
     public let features: [String: AnyCodable]
     public let snapshot: Snapshot
     public let pluginsurfaceurls: [String: AnyCodable]?
+    public let canvashosturl: String?
     public let auth: [String: AnyCodable]
     public let policy: [String: AnyCodable]
 
@@ -109,6 +110,7 @@ public struct HelloOk: Codable, Sendable {
         features: [String: AnyCodable],
         snapshot: Snapshot,
         pluginsurfaceurls: [String: AnyCodable]?,
+        canvashosturl: String?,
         auth: [String: AnyCodable],
         policy: [String: AnyCodable])
     {
@@ -118,6 +120,7 @@ public struct HelloOk: Codable, Sendable {
         self.features = features
         self.snapshot = snapshot
         self.pluginsurfaceurls = pluginsurfaceurls
+        self.canvashosturl = canvashosturl
         self.auth = auth
         self.policy = policy
     }
@@ -129,6 +132,7 @@ public struct HelloOk: Codable, Sendable {
         case features
         case snapshot
         case pluginsurfaceurls = "pluginSurfaceUrls"
+        case canvashosturl = "canvasHostUrl"
         case auth
         case policy
     }
