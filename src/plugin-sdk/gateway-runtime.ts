@@ -4,6 +4,19 @@ export * from "../gateway/channel-status-patches.js";
 export { addGatewayClientOptions, callGatewayFromCli } from "../cli/gateway-rpc.js";
 export type { GatewayRpcOpts } from "../cli/gateway-rpc.js";
 export { isLoopbackHost } from "../gateway/net.js";
+export { resolveHostedPluginSurfaceUrl } from "../gateway/hosted-plugin-surface-url.js";
+export type { HostedPluginSurfaceUrlParams } from "../gateway/hosted-plugin-surface-url.js";
+export {
+  buildPluginNodeCapabilityScopedHostUrl,
+  DEFAULT_PLUGIN_NODE_CAPABILITY_TTL_MS,
+  mintPluginNodeCapabilityToken,
+  normalizePluginNodeCapabilityScopedUrl,
+  PLUGIN_NODE_CAPABILITY_PATH_PREFIX,
+} from "../gateway/plugin-node-capability.js";
+export type {
+  NormalizedPluginNodeCapabilityUrl,
+  PluginNodeCapabilitySurface,
+} from "../gateway/plugin-node-capability.js";
 export {
   isNodeCommandAllowed,
   resolveNodeCommandAllowlist,

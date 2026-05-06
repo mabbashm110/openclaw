@@ -2038,8 +2038,16 @@ export type OpenClawPluginHttpRouteParams = {
   auth: OpenClawPluginHttpRouteAuth;
   match?: OpenClawPluginHttpRouteMatch;
   gatewayRuntimeScopeSurface?: OpenClawPluginGatewayRuntimeScopeSurface;
+  nodeCapability?: {
+    surface: string;
+    ttlMs?: number;
+  };
   replaceExisting?: boolean;
 };
+
+export type OpenClawPluginHostedMediaResolver = (
+  mediaUrl: string,
+) => string | null | undefined | Promise<string | null | undefined>;
 
 export type OpenClawPluginCliContext = {
   /**
@@ -2419,6 +2427,8 @@ export type OpenClawPluginApi = {
     opts?: OpenClawPluginHookOptions,
   ) => void;
   registerHttpRoute: (params: OpenClawPluginHttpRouteParams) => void;
+  /** Register a plugin-owned resolver for browser-style hosted media URLs. */
+  registerHostedMediaResolver: (resolver: OpenClawPluginHostedMediaResolver) => void;
   /** Register a native messaging channel plugin (channel capability). */
   registerChannel: (registration: OpenClawPluginChannelRegistration | ChannelPlugin) => void;
   /**

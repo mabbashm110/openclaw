@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
 import type { RawData, WebSocket, WebSocketServer } from "ws";
-import { resolveCanvasHostUrl } from "../../../extensions/canvas/runtime-api.js";
 import { getRuntimeConfig } from "../../config/io.js";
 import { removeRemoteNodeInfo } from "../../infra/skills-remote.js";
 import { upsertPresence } from "../../infra/system-presence.js";
@@ -13,6 +12,7 @@ import { isWebchatClient } from "../../utils/message-channel.js";
 import type { AuthRateLimiter } from "../auth-rate-limit.js";
 import type { ResolvedGatewayAuth } from "../auth.js";
 import { resolvePreauthHandshakeTimeoutMs } from "../handshake-timeouts.js";
+import { resolveHostedPluginSurfaceUrl } from "../hosted-plugin-surface-url.js";
 import { isLoopbackAddress } from "../net.js";
 import { MAX_PAYLOAD_BYTES, MAX_PREAUTH_PAYLOAD_BYTES } from "../server-constants.js";
 import { clearNodeWakeState } from "../server-methods/nodes-wake-state.js";
@@ -253,8 +253,8 @@ export function attachGatewayWsConnectionHandler(params: AttachGatewayWsConnecti
     const canvasHostPortForWs = canvasHostServerPort ?? (canvasHostEnabled ? port : undefined);
     const canvasHostOverride =
       gatewayHost && gatewayHost !== "0.0.0.0" && gatewayHost !== "::" ? gatewayHost : undefined;
-    const canvasHostUrl = resolveCanvasHostUrl({
-      canvasPort: canvasHostPortForWs,
+    const canvasHostUrl = resolveHostedPluginSurfaceUrl({
+      port: canvasHostPortForWs,
       hostOverride: canvasHostServerPort ? canvasHostOverride : undefined,
       requestHost: upgradeReq.headers.host,
       forwardedProto: upgradeReq.headers["x-forwarded-proto"],

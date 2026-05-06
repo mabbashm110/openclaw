@@ -250,7 +250,7 @@ async function withCanvasGatewayHarness(params: {
       }
       return canvasHost.handleHttpRequest(req, res);
     },
-    shouldAuthorizeCanvasRequest: () => true,
+    resolvePluginNodeCapabilityRoute: () => ({ surface: "canvas" }),
     resolvedAuth: params.resolvedAuth,
     getResolvedAuth: params.getResolvedAuth,
     rateLimiter: params.rateLimiter,
@@ -261,7 +261,7 @@ async function withCanvasGatewayHarness(params: {
     httpServer,
     wss,
     handlePluginUpgrade: async (req, socket, head) => canvasHost.handleUpgrade(req, socket, head),
-    shouldAuthorizeCanvasRequest: () => true,
+    resolvePluginNodeCapabilityRoute: () => ({ surface: "canvas" }),
     clients,
     preauthConnectionBudget: createPreauthConnectionBudget(8),
     resolvedAuth: params.resolvedAuth,
@@ -286,7 +286,7 @@ async function withCanvasGatewayHarness(params: {
   }
 }
 
-describe("gateway canvas host auth", () => {
+describe("gateway plugin node capability auth", () => {
   const tokenResolvedAuth: ResolvedGatewayAuth = {
     mode: "token",
     token: "test-token",

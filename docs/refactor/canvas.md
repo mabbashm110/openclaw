@@ -37,7 +37,7 @@ Done:
 - Moved the agent `canvas` tool from `src/agents/tools/canvas-tool.ts` to `extensions/canvas/src/tool.ts`.
 - Removed core registration of `createCanvasTool` from `src/agents/openclaw-tools.ts`.
 - Moved Canvas host implementation from `src/canvas-host` to `extensions/canvas/src/host`.
-- Added `extensions/canvas/runtime-api.ts` as the plugin-owned runtime barrel used by core gateway code.
+- Kept `extensions/canvas/runtime-api.ts` as the plugin-owned compatibility barrel for tests, packaging, and external public Canvas helpers.
 - Moved Canvas document materialization from `src/gateway/canvas-documents.ts` to `extensions/canvas/src/documents.ts`.
 - Moved Canvas CLI implementation and A2UI JSONL helpers into `extensions/canvas/src/cli.ts`.
 - Moved Canvas host URL and scoped capability helpers into `extensions/canvas/src`.
@@ -46,6 +46,9 @@ Done:
 - Added a Canvas plugin setup migration so `openclaw doctor --fix` rewrites legacy top-level `canvasHost` config into `plugins.entries.canvas.config.host`.
 - Moved Canvas and A2UI HTTP serving behind Canvas plugin HTTP route registration.
 - Added generic plugin WebSocket upgrade dispatch for plugin-owned HTTP routes.
+- Replaced Canvas-specific gateway host URL and node capability auth with generic hosted plugin surface and node capability helpers.
+- Added plugin-owned hosted media resolvers so Canvas document URLs resolve through the Canvas plugin instead of core importing Canvas document internals.
+- Removed production `src/**` imports of `extensions/canvas/runtime-api.js`.
 - Kept top-level `canvasHost` as a legacy read compatibility alias while doctor repairs old configs.
 - Updated generated plugin inventory to include Canvas.
 - Added plugin reference docs at `docs/plugins/reference/canvas.md`.
@@ -55,6 +58,7 @@ Known remaining core-owned Canvas surfaces:
 - `src/config/types.gateway.ts` and related schema labels/help retain legacy `canvasHost` read/repair compatibility
 - Gateway node hello and `nodes.canvasCapability.refresh` still carry `canvasHostUrl`/capability fields because native clients already speak that protocol shape
 - native app Canvas protocol/client handlers under `apps/`
+- build/package output still copies A2UI to `dist/canvas-host/a2ui` for published artifact compatibility
 
 ## Target shape
 
@@ -74,6 +78,8 @@ Core should own only generic seams:
 - generic agent tool registry
 - generic node invoke policy registry
 - generic gateway HTTP/auth and WebSocket upgrade dispatch
+- generic hosted plugin surface URL resolution
+- generic hosted media resolver registration
 - generic node capability transport plus the existing Canvas protocol fields until native clients have a plugin-generic replacement
 - generic config plumbing plus the legacy `canvasHost` alias for existing Canvas config
 
@@ -93,7 +99,8 @@ Before calling the refactor complete:
 - `rg "src/canvas-host|../canvas-host"` returns no live source imports.
 - `rg "canvas-tool|createCanvasTool" src` finds no core-owned Canvas tool implementation.
 - `rg "canvas.present|canvas.snapshot|canvas.a2ui" src/gateway` finds no hardcoded allowlist defaults outside generic plugin policy tests.
-- `rg "canvas-documents" src` is either empty or only imports the Canvas plugin runtime barrel.
+- `rg "extensions/canvas/runtime-api" src --glob '!**/*.test.ts'` is empty.
+- `rg "canvas-documents" src` is empty.
 - `rg "registerNodesCanvasCommands|nodes-canvas" src` is empty; the Canvas plugin registers `openclaw nodes canvas` through nested plugin CLI metadata.
 - `rg "createCanvasHostHandler|handleA2uiHttpRequest" src/gateway` returns no gateway runtime ownership.
 - `pnpm plugins:inventory:check` passes.
@@ -108,7 +115,7 @@ Use targeted local checks while iterating:
 
 ```sh
 pnpm test extensions/canvas/src/host/server.test.ts extensions/canvas/src/host/server.state-dir.test.ts extensions/canvas/src/host/file-resolver.test.ts
-pnpm test src/gateway/server.canvas-auth.test.ts src/gateway/server-import-boundary.test.ts
+pnpm test src/gateway/server.plugin-node-capability-auth.test.ts src/gateway/server-import-boundary.test.ts
 pnpm test extensions/canvas/src/config-migration.test.ts src/commands/doctor-legacy-config.migrations.test.ts
 pnpm test test/scripts/changed-lanes.test.ts test/scripts/bundle-a2ui.test.ts
 pnpm tsgo:extensions

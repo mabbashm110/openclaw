@@ -7,12 +7,6 @@ import {
 import { createServer as createHttpsServer } from "node:https";
 import type { TlsOptions } from "node:tls";
 import type { WebSocketServer } from "ws";
-import {
-  A2UI_PATH,
-  CANVAS_HOST_PATH,
-  CANVAS_WS_PATH,
-  normalizeCanvasScopedUrl,
-} from "../../extensions/canvas/runtime-api.js";
 import { resolveBundledChannelGatewayAuthBypassPaths } from "../channels/plugins/gateway-auth-bypass.js";
 import { getRuntimeConfig } from "../config/io.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
@@ -32,6 +26,10 @@ import type { ControlUiRootState } from "./control-ui.js";
 import type { AuthorizedGatewayHttpRequest } from "./http-auth-utils.js";
 import { sendGatewayAuthFailure, setDefaultSecurityHeaders } from "./http-common.js";
 import { resolveRequestClientIp } from "./net.js";
+import {
+  normalizePluginNodeCapabilityScopedUrl,
+  type PluginNodeCapabilitySurface,
+} from "./plugin-node-capability.js";
 import type { HooksRequestHandler } from "./server/hooks-request-handler.js";
 import {
   isProtectedPluginRoutePathFromContext,
@@ -65,6 +63,10 @@ type PluginHttpUpgradeHandler = (
   },
 ) => Promise<boolean>;
 
+type ResolvePluginNodeCapabilityRoute = (
+  pathContext: PluginRoutePathContext,
+) => PluginNodeCapabilitySurface | undefined;
+
 let identityAvatarModulePromise: Promise<typeof import("../agents/identity-avatar.js")> | undefined;
 let controlUiModulePromise: Promise<typeof import("./control-ui.js")> | undefined;
 let embeddingsHttpModulePromise: Promise<typeof import("./embeddings-http.js")> | undefined;
@@ -79,7 +81,9 @@ let sessionHistoryHttpModulePromise:
   | undefined;
 let sessionKillHttpModulePromise: Promise<typeof import("./session-kill-http.js")> | undefined;
 let toolsInvokeHttpModulePromise: Promise<typeof import("./tools-invoke-http.js")> | undefined;
-let canvasAuthModulePromise: Promise<typeof import("./server/http-auth.js")> | undefined;
+let pluginNodeCapabilityAuthModulePromise:
+  | Promise<typeof import("./server/plugin-node-capability-auth.js")>
+  | undefined;
 let httpAuthUtilsModulePromise: Promise<typeof import("./http-auth-utils.js")> | undefined;
 let pluginRouteRuntimeScopesModulePromise:
   | Promise<typeof import("./server/plugin-route-runtime-scopes.js")>
@@ -135,9 +139,9 @@ function getToolsInvokeHttpModule() {
   return toolsInvokeHttpModulePromise;
 }
 
-function getCanvasAuthModule() {
-  canvasAuthModulePromise ??= import("./server/http-auth.js");
-  return canvasAuthModulePromise;
+function getPluginNodeCapabilityAuthModule() {
+  pluginNodeCapabilityAuthModulePromise ??= import("./server/plugin-node-capability-auth.js");
+  return pluginNodeCapabilityAuthModulePromise;
 }
 
 function getHttpAuthUtilsModule() {
@@ -225,16 +229,6 @@ function isSessionKillPath(pathname: string): boolean {
 
 function isSessionHistoryPath(pathname: string): boolean {
   return /^\/sessions\/[^/]+\/history$/.test(pathname);
-}
-
-function isCanvasPath(pathname: string): boolean {
-  return (
-    pathname === A2UI_PATH ||
-    pathname.startsWith(`${A2UI_PATH}/`) ||
-    pathname === CANVAS_HOST_PATH ||
-    pathname.startsWith(`${CANVAS_HOST_PATH}/`) ||
-    pathname === CANVAS_WS_PATH
-  );
 }
 
 function shouldEnforceDefaultPluginGatewayAuth(pathContext: PluginRoutePathContext): boolean {
@@ -482,7 +476,7 @@ export function createGatewayHttpServer(opts: {
   handlePluginRequest?: PluginHttpRequestHandler;
   handlePluginUpgrade?: PluginHttpUpgradeHandler;
   shouldEnforcePluginGatewayAuth?: (pathContext: PluginRoutePathContext) => boolean;
-  shouldAuthorizeCanvasRequest?: (pathContext: PluginRoutePathContext) => boolean;
+  resolvePluginNodeCapabilityRoute?: ResolvePluginNodeCapabilityRoute;
   resolvedAuth: ResolvedGatewayAuth;
   getResolvedAuth?: () => ResolvedGatewayAuth;
   /** Optional rate limiter for auth brute-force protection. */
@@ -505,7 +499,7 @@ export function createGatewayHttpServer(opts: {
     handlePluginRequest,
     handlePluginUpgrade,
     shouldEnforcePluginGatewayAuth,
-    shouldAuthorizeCanvasRequest,
+    resolvePluginNodeCapabilityRoute,
     resolvedAuth,
     rateLimiter,
     getReadiness,
@@ -555,13 +549,13 @@ export function createGatewayHttpServer(opts: {
       const configSnapshot = loadGatewayConfig();
       const trustedProxies = configSnapshot.gateway?.trustedProxies ?? [];
       const allowRealIpFallback = configSnapshot.gateway?.allowRealIpFallback === true;
-      const scopedCanvas = normalizeCanvasScopedUrl(req.url ?? "/");
-      if (scopedCanvas.malformedScopedPath) {
+      const scopedNodeCapability = normalizePluginNodeCapabilityScopedUrl(req.url ?? "/");
+      if (scopedNodeCapability.malformedScopedPath) {
         sendGatewayAuthFailure(res, { ok: false, reason: "unauthorized" });
         return;
       }
-      if (scopedCanvas.rewrittenUrl) {
-        req.url = scopedCanvas.rewrittenUrl;
+      if (scopedNodeCapability.rewrittenUrl) {
+        req.url = scopedNodeCapability.rewrittenUrl;
       }
       const scopedRequestPath = new URL(req.url ?? "/", "http://localhost").pathname;
       const pluginPathContext = handlePluginRequest
@@ -677,23 +671,26 @@ export function createGatewayHttpServer(opts: {
       if (
         handlePluginRequest &&
         pluginPathContext &&
-        shouldAuthorizeCanvasRequest?.(pluginPathContext)
+        resolvePluginNodeCapabilityRoute?.(pluginPathContext)
       ) {
+        const nodeCapability = resolvePluginNodeCapabilityRoute(pluginPathContext);
         requestStages.push({
-          name: "canvas-auth",
+          name: "plugin-node-capability-auth",
           run: async () => {
-            if (!isCanvasPath(scopedRequestPath)) {
+            if (!nodeCapability) {
               return false;
             }
-            const { authorizeCanvasRequest } = await getCanvasAuthModule();
-            const ok = await authorizeCanvasRequest({
+            const { authorizePluginNodeCapabilityRequest } =
+              await getPluginNodeCapabilityAuthModule();
+            const ok = await authorizePluginNodeCapabilityRequest({
               req,
               auth: resolvedAuth,
               trustedProxies,
               allowRealIpFallback,
               clients,
-              canvasCapability: scopedCanvas.capability,
-              malformedScopedPath: scopedCanvas.malformedScopedPath,
+              nodeCapability,
+              capability: scopedNodeCapability.capability,
+              malformedScopedPath: scopedNodeCapability.malformedScopedPath,
               rateLimiter,
             });
             if (!ok.ok) {
@@ -808,7 +805,7 @@ export function attachGatewayUpgradeHandler(opts: {
   httpServer: HttpServer;
   wss: WebSocketServer;
   handlePluginUpgrade?: PluginHttpUpgradeHandler;
-  shouldAuthorizeCanvasRequest?: (pathContext: PluginRoutePathContext) => boolean;
+  resolvePluginNodeCapabilityRoute?: ResolvePluginNodeCapabilityRoute;
   clients: Set<GatewayWsClient>;
   preauthConnectionBudget: PreauthConnectionBudget;
   resolvedAuth: ResolvedGatewayAuth;
@@ -822,7 +819,7 @@ export function attachGatewayUpgradeHandler(opts: {
     httpServer,
     wss,
     handlePluginUpgrade,
-    shouldAuthorizeCanvasRequest,
+    resolvePluginNodeCapabilityRoute,
     clients,
     preauthConnectionBudget,
     resolvedAuth,
@@ -835,28 +832,30 @@ export function attachGatewayUpgradeHandler(opts: {
       const configSnapshot = getRuntimeConfig();
       const trustedProxies = configSnapshot.gateway?.trustedProxies ?? [];
       const allowRealIpFallback = configSnapshot.gateway?.allowRealIpFallback === true;
-      const scopedCanvas = normalizeCanvasScopedUrl(req.url ?? "/");
-      if (scopedCanvas.malformedScopedPath) {
+      const scopedNodeCapability = normalizePluginNodeCapabilityScopedUrl(req.url ?? "/");
+      if (scopedNodeCapability.malformedScopedPath) {
         writeUpgradeAuthFailure(socket, { ok: false, reason: "unauthorized" });
         socket.destroy();
         return;
       }
-      if (scopedCanvas.rewrittenUrl) {
-        req.url = scopedCanvas.rewrittenUrl;
+      if (scopedNodeCapability.rewrittenUrl) {
+        req.url = scopedNodeCapability.rewrittenUrl;
       }
       const resolvedAuth = getResolvedAuth();
       const url = new URL(req.url ?? "/", "http://localhost");
       const pathContext = resolvePluginRoutePathContext(url.pathname);
-      if (isCanvasPath(url.pathname) && shouldAuthorizeCanvasRequest?.(pathContext)) {
-        const { authorizeCanvasRequest } = await getCanvasAuthModule();
-        const ok = await authorizeCanvasRequest({
+      const nodeCapability = resolvePluginNodeCapabilityRoute?.(pathContext);
+      if (nodeCapability) {
+        const { authorizePluginNodeCapabilityRequest } = await getPluginNodeCapabilityAuthModule();
+        const ok = await authorizePluginNodeCapabilityRequest({
           req,
           auth: resolvedAuth,
           trustedProxies,
           allowRealIpFallback,
           clients,
-          canvasCapability: scopedCanvas.capability,
-          malformedScopedPath: scopedCanvas.malformedScopedPath,
+          nodeCapability,
+          capability: scopedNodeCapability.capability,
+          malformedScopedPath: scopedNodeCapability.malformedScopedPath,
           rateLimiter,
         });
         if (!ok.ok) {

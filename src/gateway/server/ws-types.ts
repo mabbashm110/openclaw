@@ -10,6 +10,7 @@ export type GatewayWsClient = {
   sharedGatewaySessionGeneration?: string;
   presenceKey?: string;
   clientIp?: string;
+  pluginNodeCapabilities?: Record<string, { capability: string; expiresAtMs: number }>;
   canvasHostUrl?: string;
   canvasCapability?: string;
   canvasCapabilityExpiresAtMs?: number;

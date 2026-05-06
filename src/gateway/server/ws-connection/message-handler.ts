@@ -1,11 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import os from "node:os";
 import type { RawData, WebSocket } from "ws";
-import {
-  buildCanvasScopedHostUrl,
-  CANVAS_CAPABILITY_TTL_MS,
-  mintCanvasCapabilityToken,
-} from "../../../../extensions/canvas/runtime-api.js";
 import { getRuntimeConfig } from "../../../config/io.js";
 import {
   getBoundDeviceBootstrapProfile,
@@ -76,6 +71,12 @@ import {
   shouldAutoApproveNodePairingFromTrustedCidrs,
 } from "../../node-pairing-auto-approve.js";
 import { checkBrowserOrigin } from "../../origin-check.js";
+import {
+  buildPluginNodeCapabilityScopedHostUrl,
+  mintPluginNodeCapabilityToken,
+  resolvePluginNodeCapabilityTtlMs,
+  setClientPluginNodeCapability,
+} from "../../plugin-node-capability.js";
 import { GATEWAY_CLIENT_IDS, GATEWAY_CLIENT_MODES } from "../../protocol/client-info.js";
 import {
   buildPairingConnectCloseReason,
@@ -1312,9 +1313,10 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           return;
         }
 
-        const canvasCapability = canvasHostUrl ? mintCanvasCapabilityToken() : undefined;
+        const canvasNodeCapability = { surface: "canvas" };
+        const canvasCapability = canvasHostUrl ? mintPluginNodeCapabilityToken() : undefined;
         const canvasCapabilityExpiresAtMs = canvasCapability
-          ? Date.now() + CANVAS_CAPABILITY_TTL_MS
+          ? Date.now() + resolvePluginNodeCapabilityTtlMs(canvasNodeCapability)
           : undefined;
         const usesSharedGatewayAuth =
           authMethod === "token" || authMethod === "password" || authMethod === "trusted-proxy";
@@ -1323,7 +1325,8 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           : undefined;
         const scopedCanvasHostUrl =
           canvasHostUrl && canvasCapability
-            ? (buildCanvasScopedHostUrl(canvasHostUrl, canvasCapability) ?? canvasHostUrl)
+            ? (buildPluginNodeCapabilityScopedHostUrl(canvasHostUrl, canvasCapability) ??
+              canvasHostUrl)
             : canvasHostUrl;
         clearHandshakeTimer();
         const nextClient: GatewayWsClient = {
@@ -1339,6 +1342,14 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           canvasCapability,
           canvasCapabilityExpiresAtMs,
         };
+        if (canvasCapability && canvasCapabilityExpiresAtMs) {
+          setClientPluginNodeCapability({
+            client: nextClient,
+            surface: canvasNodeCapability,
+            capability: canvasCapability,
+            expiresAtMs: canvasCapabilityExpiresAtMs,
+          });
+        }
         setSocketMaxPayload(socket, MAX_PAYLOAD_BYTES);
         if (!setClient(nextClient)) {
           setCloseCause("connect-aborted-before-register", {

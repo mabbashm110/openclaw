@@ -40,11 +40,11 @@ export type DiscoveryConfig = {
 
 export type CanvasHostConfig = {
   enabled?: boolean;
-  /** Legacy alias for plugins.entries.canvas.config.host.root. */
+  /** @deprecated Legacy alias for plugins.entries.canvas.config.host.root. */
   root?: string;
-  /** Legacy alias for plugins.entries.canvas.config.host.port. */
+  /** @deprecated Legacy alias for plugins.entries.canvas.config.host.port. */
   port?: number;
-  /** Legacy alias for plugins.entries.canvas.config.host.liveReload. */
+  /** @deprecated Legacy alias for plugins.entries.canvas.config.host.liveReload. */
   liveReload?: boolean;
 };
 

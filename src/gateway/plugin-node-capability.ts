@@ -1,0 +1,167 @@
+import { randomBytes } from "node:crypto";
+import { safeEqualSecret } from "../security/secret-equal.js";
+import type { GatewayWsClient } from "./server/ws-types.js";
+
+export const PLUGIN_NODE_CAPABILITY_PATH_PREFIX = "/__openclaw__/cap";
+const PLUGIN_NODE_CAPABILITY_QUERY_PARAM = "oc_cap";
+export const DEFAULT_PLUGIN_NODE_CAPABILITY_TTL_MS = 10 * 60_000;
+
+export type PluginNodeCapabilitySurface = {
+  surface: string;
+  ttlMs?: number;
+};
+
+export type PluginNodeCapabilityClient = {
+  pluginNodeCapabilities?: Record<string, { capability: string; expiresAtMs: number }>;
+  canvasCapability?: string;
+  canvasCapabilityExpiresAtMs?: number;
+};
+
+export type NormalizedPluginNodeCapabilityUrl = {
+  pathname: string;
+  capability?: string;
+  rewrittenUrl?: string;
+  scopedPath: boolean;
+  malformedScopedPath: boolean;
+};
+
+function normalizeCapability(raw: string | null | undefined) {
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeSurface(raw: string | undefined) {
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+export function resolvePluginNodeCapabilityTtlMs(surface: PluginNodeCapabilitySurface) {
+  return surface.ttlMs && surface.ttlMs > 0 ? surface.ttlMs : DEFAULT_PLUGIN_NODE_CAPABILITY_TTL_MS;
+}
+
+export function mintPluginNodeCapabilityToken(): string {
+  return randomBytes(18).toString("base64url");
+}
+
+export function buildPluginNodeCapabilityScopedHostUrl(
+  baseUrl: string,
+  capability: string,
+): string | undefined {
+  const normalizedCapability = normalizeCapability(capability);
+  if (!normalizedCapability) {
+    return undefined;
+  }
+  try {
+    const url = new URL(baseUrl);
+    const trimmedPath = url.pathname.replace(/\/+$/, "");
+    const prefix = `${PLUGIN_NODE_CAPABILITY_PATH_PREFIX}/${encodeURIComponent(normalizedCapability)}`;
+    url.pathname = `${trimmedPath}${prefix}`;
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
+export function normalizePluginNodeCapabilityScopedUrl(
+  rawUrl: string,
+): NormalizedPluginNodeCapabilityUrl {
+  const url = new URL(rawUrl, "http://localhost");
+  const prefix = `${PLUGIN_NODE_CAPABILITY_PATH_PREFIX}/`;
+  let scopedPath = false;
+  let malformedScopedPath = false;
+  let capabilityFromPath: string | undefined;
+  let rewrittenUrl: string | undefined;
+
+  if (url.pathname.startsWith(prefix)) {
+    scopedPath = true;
+    const remainder = url.pathname.slice(prefix.length);
+    const slashIndex = remainder.indexOf("/");
+    if (slashIndex <= 0) {
+      malformedScopedPath = true;
+    } else {
+      const encodedCapability = remainder.slice(0, slashIndex);
+      const canonicalPath = remainder.slice(slashIndex) || "/";
+      let decoded: string | undefined;
+      try {
+        decoded = decodeURIComponent(encodedCapability);
+      } catch {
+        malformedScopedPath = true;
+      }
+      capabilityFromPath = normalizeCapability(decoded);
+      if (!capabilityFromPath || !canonicalPath.startsWith("/")) {
+        malformedScopedPath = true;
+      } else {
+        url.pathname = canonicalPath;
+        if (!url.searchParams.has(PLUGIN_NODE_CAPABILITY_QUERY_PARAM)) {
+          url.searchParams.set(PLUGIN_NODE_CAPABILITY_QUERY_PARAM, capabilityFromPath);
+        }
+        rewrittenUrl = `${url.pathname}${url.search}`;
+      }
+    }
+  }
+
+  const capability =
+    capabilityFromPath ??
+    normalizeCapability(url.searchParams.get(PLUGIN_NODE_CAPABILITY_QUERY_PARAM));
+  return {
+    pathname: url.pathname,
+    capability,
+    rewrittenUrl,
+    scopedPath,
+    malformedScopedPath,
+  };
+}
+
+export function setClientPluginNodeCapability(params: {
+  client: PluginNodeCapabilityClient;
+  surface: PluginNodeCapabilitySurface;
+  capability: string;
+  expiresAtMs: number;
+}) {
+  const surface = normalizeSurface(params.surface.surface);
+  if (!surface) {
+    return;
+  }
+  params.client.pluginNodeCapabilities ??= {};
+  params.client.pluginNodeCapabilities[surface] = {
+    capability: params.capability,
+    expiresAtMs: params.expiresAtMs,
+  };
+}
+
+export function hasAuthorizedPluginNodeCapability(params: {
+  clients: Set<GatewayWsClient>;
+  surface: PluginNodeCapabilitySurface;
+  capability: string;
+  nowMs?: number;
+}) {
+  const surface = normalizeSurface(params.surface.surface);
+  if (!surface) {
+    return false;
+  }
+  const nowMs = params.nowMs ?? Date.now();
+  const ttlMs = resolvePluginNodeCapabilityTtlMs(params.surface);
+  for (const client of params.clients) {
+    const entry =
+      client.pluginNodeCapabilities?.[surface] ??
+      (surface === "canvas" && client.canvasCapability
+        ? {
+            capability: client.canvasCapability,
+            expiresAtMs: client.canvasCapabilityExpiresAtMs ?? 0,
+          }
+        : undefined);
+    if (!entry || entry.expiresAtMs <= nowMs) {
+      continue;
+    }
+    if (safeEqualSecret(entry.capability, params.capability)) {
+      entry.expiresAtMs = nowMs + ttlMs;
+      if (surface === "canvas") {
+        client.canvasCapabilityExpiresAtMs = entry.expiresAtMs;
+      }
+      return true;
+    }
+  }
+  return false;
+}

@@ -32,7 +32,7 @@ import type { HookClientIpConfig, HooksRequestHandler } from "./server/hooks-req
 import { listenGatewayHttpServer } from "./server/http-listen.js";
 import type { PluginRoutePathContext } from "./server/plugins-http/path-context.js";
 import { shouldEnforceGatewayAuthForPluginPath } from "./server/plugins-http/route-auth.js";
-import { findMatchingPluginHttpRoutes } from "./server/plugins-http/route-match.js";
+import { findMatchingPluginNodeCapabilityRoute } from "./server/plugins-http/route-capability.js";
 import {
   createPreauthConnectionBudget,
   type PreauthConnectionBudget,
@@ -198,12 +198,11 @@ export async function createGatewayRuntimeState(params: {
         pathContext,
       );
     };
-    const shouldAuthorizeCanvasRequest = (pathContext: PluginRoutePathContext): boolean => {
-      return findMatchingPluginHttpRoutes(
+    const resolvePluginNodeCapabilityRoute = (pathContext: PluginRoutePathContext) =>
+      findMatchingPluginNodeCapabilityRoute(
         resolveActivePluginHttpRouteRegistry(params.pluginRegistry),
         pathContext,
-      ).some((route) => route.pluginId === "canvas");
-    };
+      )?.nodeCapability;
 
     const bindHosts = await resolveGatewayListenHosts(params.bindHost);
     if (!isLoopbackHost(params.bindHost)) {
@@ -243,7 +242,7 @@ export async function createGatewayRuntimeState(params: {
         handleHooksRequest,
         handlePluginRequest,
         shouldEnforcePluginGatewayAuth,
-        shouldAuthorizeCanvasRequest,
+        resolvePluginNodeCapabilityRoute,
         resolvedAuth: params.resolvedAuth,
         getResolvedAuth: params.getResolvedAuth,
         rateLimiter: params.rateLimiter,
@@ -255,7 +254,7 @@ export async function createGatewayRuntimeState(params: {
         httpServer,
         wss,
         handlePluginUpgrade,
-        shouldAuthorizeCanvasRequest,
+        resolvePluginNodeCapabilityRoute,
         clients,
         preauthConnectionBudget,
         resolvedAuth: params.resolvedAuth,

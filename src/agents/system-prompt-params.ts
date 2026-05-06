@@ -1,10 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveCanvasHostConfig } from "../../extensions/canvas/runtime-api.js";
+import { resolveCanvasCompatRootDir } from "../config/canvas-compat.js";
 import { resolveStateDir } from "../config/paths.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { findGitRoot } from "../infra/git-root.js";
-import { resolveHomeRelativePath } from "../infra/home-dir.js";
 import {
   formatUserTime,
   resolveUserTimeFormat,
@@ -52,9 +51,10 @@ export function buildSystemPromptParams(params: {
   const userTimeFormat = resolveUserTimeFormat(params.config?.agents?.defaults?.timeFormat);
   const userTime = formatUserTime(new Date(), userTimezone, userTimeFormat);
   const stateDir = resolveStateDir(process.env);
-  const canvasRootDir = resolveCanvasRootDir({
+  const canvasRootDir = resolveCanvasCompatRootDir({
     config: params.config,
     stateDir,
+    env: process.env,
   });
   return {
     runtimeInfo: {
@@ -67,18 +67,6 @@ export function buildSystemPromptParams(params: {
     userTime,
     userTimeFormat,
   };
-}
-
-function resolveCanvasRootDir(params: { config?: OpenClawConfig; stateDir: string }): string {
-  const configured = resolveCanvasHostConfig({ config: params.config }).root?.trim();
-  if (configured) {
-    return path.resolve(
-      resolveHomeRelativePath(configured, {
-        env: process.env,
-      }),
-    );
-  }
-  return path.resolve(path.join(params.stateDir, "canvas"));
 }
 
 function resolveRepoRoot(params: {

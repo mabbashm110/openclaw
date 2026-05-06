@@ -1,11 +1,4 @@
 import type { IncomingMessage } from "node:http";
-import {
-  A2UI_PATH,
-  CANVAS_CAPABILITY_TTL_MS,
-  CANVAS_HOST_PATH,
-  CANVAS_WS_PATH,
-} from "../../../extensions/canvas/runtime-api.js";
-import { safeEqualSecret } from "../../security/secret-equal.js";
 import type { AuthRateLimiter } from "../auth-rate-limit.js";
 import {
   authorizeHttpGatewayConnect,
@@ -13,46 +6,20 @@ import {
   type ResolvedGatewayAuth,
 } from "../auth.js";
 import { getBearerToken, resolveHttpBrowserOriginPolicy } from "../http-auth-utils.js";
+import {
+  hasAuthorizedPluginNodeCapability,
+  type PluginNodeCapabilitySurface,
+} from "../plugin-node-capability.js";
 import type { GatewayWsClient } from "./ws-types.js";
 
-export function isCanvasPath(pathname: string): boolean {
-  return (
-    pathname === A2UI_PATH ||
-    pathname.startsWith(`${A2UI_PATH}/`) ||
-    pathname === CANVAS_HOST_PATH ||
-    pathname.startsWith(`${CANVAS_HOST_PATH}/`) ||
-    pathname === CANVAS_WS_PATH
-  );
-}
-
-function hasAuthorizedWsClientForCanvasCapability(
-  clients: Set<GatewayWsClient>,
-  capability: string,
-): boolean {
-  const nowMs = Date.now();
-  for (const client of clients) {
-    if (!client.canvasCapability || !client.canvasCapabilityExpiresAtMs) {
-      continue;
-    }
-    if (client.canvasCapabilityExpiresAtMs <= nowMs) {
-      continue;
-    }
-    if (safeEqualSecret(client.canvasCapability, capability)) {
-      // Sliding expiration while the connected node keeps using canvas.
-      client.canvasCapabilityExpiresAtMs = nowMs + CANVAS_CAPABILITY_TTL_MS;
-      return true;
-    }
-  }
-  return false;
-}
-
-export async function authorizeCanvasRequest(params: {
+export async function authorizePluginNodeCapabilityRequest(params: {
   req: IncomingMessage;
   auth: ResolvedGatewayAuth;
   trustedProxies: string[];
   allowRealIpFallback: boolean;
   clients: Set<GatewayWsClient>;
-  canvasCapability?: string;
+  nodeCapability: PluginNodeCapabilitySurface;
+  capability?: string;
   malformedScopedPath?: boolean;
   rateLimiter?: AuthRateLimiter;
 }): Promise<GatewayAuthResult> {
@@ -62,7 +29,8 @@ export async function authorizeCanvasRequest(params: {
     trustedProxies,
     allowRealIpFallback,
     clients,
-    canvasCapability,
+    nodeCapability,
+    capability,
     malformedScopedPath,
     rateLimiter,
   } = params;
@@ -88,8 +56,16 @@ export async function authorizeCanvasRequest(params: {
     lastAuthFailure = authResult;
   }
 
-  if (canvasCapability && hasAuthorizedWsClientForCanvasCapability(clients, canvasCapability)) {
+  if (
+    capability &&
+    hasAuthorizedPluginNodeCapability({
+      clients,
+      surface: nodeCapability,
+      capability,
+    })
+  ) {
     return { ok: true };
   }
+
   return lastAuthFailure ?? { ok: false, reason: "unauthorized" };
 }

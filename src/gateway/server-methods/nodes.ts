@@ -1,9 +1,4 @@
 import { randomUUID } from "node:crypto";
-import {
-  buildCanvasScopedHostUrl,
-  CANVAS_CAPABILITY_TTL_MS,
-  mintCanvasCapabilityToken,
-} from "../../../extensions/canvas/runtime-api.js";
 import { getRuntimeConfig } from "../../config/io.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { listDevicePairing } from "../../infra/device-pairing.js";
@@ -38,6 +33,12 @@ import {
 } from "../node-command-policy.js";
 import { applyPluginNodeInvokePolicy } from "../node-invoke-plugin-policy.js";
 import { sanitizeNodeInvokeParamsForForwarding } from "../node-invoke-sanitize.js";
+import {
+  buildPluginNodeCapabilityScopedHostUrl,
+  mintPluginNodeCapabilityToken,
+  resolvePluginNodeCapabilityTtlMs,
+  setClientPluginNodeCapability,
+} from "../plugin-node-capability.js";
 import {
   type ConnectParams,
   ErrorCodes,
@@ -866,9 +867,14 @@ export const nodeHandlers: GatewayRequestHandlers = {
       return;
     }
 
-    const canvasCapability = mintCanvasCapabilityToken();
-    const canvasCapabilityExpiresAtMs = Date.now() + CANVAS_CAPABILITY_TTL_MS;
-    const scopedCanvasHostUrl = buildCanvasScopedHostUrl(baseCanvasHostUrl, canvasCapability);
+    const canvasNodeCapability = { surface: "canvas" };
+    const canvasCapability = mintPluginNodeCapabilityToken();
+    const canvasCapabilityExpiresAtMs =
+      Date.now() + resolvePluginNodeCapabilityTtlMs(canvasNodeCapability);
+    const scopedCanvasHostUrl = buildPluginNodeCapabilityScopedHostUrl(
+      baseCanvasHostUrl,
+      canvasCapability,
+    );
     if (!scopedCanvasHostUrl) {
       respond(
         false,
@@ -881,6 +887,12 @@ export const nodeHandlers: GatewayRequestHandlers = {
     if (client) {
       client.canvasCapability = canvasCapability;
       client.canvasCapabilityExpiresAtMs = canvasCapabilityExpiresAtMs;
+      setClientPluginNodeCapability({
+        client,
+        surface: canvasNodeCapability,
+        capability: canvasCapability,
+        expiresAtMs: canvasCapabilityExpiresAtMs,
+      });
     }
     respond(
       true,

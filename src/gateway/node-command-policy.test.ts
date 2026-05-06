@@ -16,7 +16,7 @@ describe("gateway/node-command-policy", () => {
 
   function installCanvasPluginDefaults() {
     const registry = createEmptyPluginRegistry();
-    registry.nodeInvokePolicies.push({
+    (registry.nodeInvokePolicies ??= []).push({
       pluginId: "canvas",
       pluginName: "Canvas",
       source: "/extensions/canvas/index.ts",

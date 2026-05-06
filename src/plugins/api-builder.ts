@@ -21,6 +21,7 @@ export type BuildPluginApiParams = {
       | "registerTool"
       | "registerHook"
       | "registerHttpRoute"
+      | "registerHostedMediaResolver"
       | "registerChannel"
       | "registerGatewayMethod"
       | "registerCli"
@@ -80,6 +81,7 @@ export type BuildPluginApiParams = {
 const noopRegisterTool: OpenClawPluginApi["registerTool"] = () => {};
 const noopRegisterHook: OpenClawPluginApi["registerHook"] = () => {};
 const noopRegisterHttpRoute: OpenClawPluginApi["registerHttpRoute"] = () => {};
+const noopRegisterHostedMediaResolver: OpenClawPluginApi["registerHostedMediaResolver"] = () => {};
 const noopRegisterChannel: OpenClawPluginApi["registerChannel"] = () => {};
 const noopRegisterGatewayMethod: OpenClawPluginApi["registerGatewayMethod"] = () => {};
 const noopRegisterCli: OpenClawPluginApi["registerCli"] = () => {};
@@ -168,6 +170,8 @@ export function buildPluginApi(params: BuildPluginApiParams): OpenClawPluginApi 
     registerTool: handlers.registerTool ?? noopRegisterTool,
     registerHook: handlers.registerHook ?? noopRegisterHook,
     registerHttpRoute: handlers.registerHttpRoute ?? noopRegisterHttpRoute,
+    registerHostedMediaResolver:
+      handlers.registerHostedMediaResolver ?? noopRegisterHostedMediaResolver,
     registerChannel: handlers.registerChannel ?? noopRegisterChannel,
     registerGatewayMethod: handlers.registerGatewayMethod ?? noopRegisterGatewayMethod,
     registerCli: handlers.registerCli ?? noopRegisterCli,
