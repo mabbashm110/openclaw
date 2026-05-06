@@ -19,6 +19,9 @@ const mocks = vi.hoisted(() => ({
   isNodeCommandAllowed: vi.fn<
     (params: MockNodeCommandPolicyParams) => { ok: true } | { ok: false; reason: string }
   >(() => ({ ok: true })),
+  isForegroundRestrictedPluginNodeCommand: vi.fn((command: string) =>
+    command.startsWith("canvas."),
+  ),
   sanitizeNodeInvokeParamsForForwarding: vi.fn(({ rawParams }: { rawParams: unknown }) => ({
     ok: true,
     params: rawParams,
@@ -39,6 +42,7 @@ vi.mock("../../config/io.js", () => ({
 vi.mock("../node-command-policy.js", () => ({
   resolveNodeCommandAllowlist: mocks.resolveNodeCommandAllowlist,
   isNodeCommandAllowed: mocks.isNodeCommandAllowed,
+  isForegroundRestrictedPluginNodeCommand: mocks.isForegroundRestrictedPluginNodeCommand,
 }));
 
 vi.mock("../node-invoke-sanitize.js", () => ({
@@ -259,6 +263,10 @@ describe("node.invoke APNs wake path", () => {
     mocks.resolveNodeCommandAllowlist.mockReturnValue(new Set());
     mocks.isNodeCommandAllowed.mockClear();
     mocks.isNodeCommandAllowed.mockReturnValue({ ok: true });
+    mocks.isForegroundRestrictedPluginNodeCommand.mockClear();
+    mocks.isForegroundRestrictedPluginNodeCommand.mockImplementation((command: string) =>
+      command.startsWith("canvas."),
+    );
     mocks.sanitizeNodeInvokeParamsForForwarding.mockClear();
     mocks.sanitizeNodeInvokeParamsForForwarding.mockImplementation(
       ({ rawParams }: { rawParams: unknown }) => ({ ok: true, params: rawParams }),
