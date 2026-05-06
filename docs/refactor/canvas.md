@@ -51,7 +51,8 @@ Done:
 - Removed production `src/**` imports of `extensions/canvas/runtime-api.js`.
 - Moved the A2UI bundle source from `apps/shared/OpenClawKit/Tools/CanvasA2UI` to `extensions/canvas/src/host/a2ui-app`.
 - Moved A2UI build/copy implementation under `extensions/canvas/scripts` and replaced root build wiring with generic bundled-plugin asset hooks.
-- Removed the legacy top-level `canvasHost` config alias and Canvas doctor migration.
+- Removed the runtime legacy top-level `canvasHost` config alias.
+- Kept the Canvas doctor migration so `openclaw doctor --fix` rewrites old `canvasHost` configs into `plugins.entries.canvas.config.host`.
 - Updated generated plugin inventory to include Canvas.
 - Added plugin reference docs at `docs/plugins/reference/canvas.md`.
 
