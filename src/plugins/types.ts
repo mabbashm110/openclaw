@@ -2042,7 +2042,14 @@ export type OpenClawPluginHttpRouteParams = {
 };
 
 export type OpenClawPluginCliContext = {
+  /**
+   * Command object where this plugin should register its commands.
+   *
+   * For root CLI registrations this is the root `openclaw` program. For nested
+   * registrations it is the resolved parent command from `parentPath`.
+   */
   program: Command;
+  parentPath: readonly string[];
   config: OpenClawConfig;
   workspaceDir?: string;
   logger: PluginLogger;
@@ -2429,14 +2436,16 @@ export type OpenClawPluginApi = {
   registerCli: (
     registrar: OpenClawPluginCliRegistrar,
     opts?: {
-      /** Explicit top-level command roots owned by this registrar. */
+      /** Parent command path for nested command groups, for example `["nodes"]`. */
+      parentPath?: string[];
+      /** Explicit command names owned by this registrar at `parentPath`. */
       commands?: string[];
       /**
-       * Parse-time command descriptors for lazy root CLI registration.
+       * Parse-time command descriptors for lazy CLI registration.
        *
-       * When descriptors cover every top-level command root, OpenClaw can keep
-       * the plugin registrar lazy in the normal root CLI path. Command-only
-       * registrations stay on the eager compatibility path.
+       * When descriptors cover every command exposed at `parentPath`, OpenClaw
+       * can keep the plugin registrar lazy. Command-only registrations stay on
+       * the eager compatibility path.
        */
       descriptors?: OpenClawPluginCliCommandDescriptor[];
     },

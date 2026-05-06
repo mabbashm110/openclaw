@@ -1209,7 +1209,11 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
   const registerCli = (
     record: PluginRecord,
     registrar: OpenClawPluginCliRegistrar,
-    opts?: { commands?: string[]; descriptors?: OpenClawPluginCliCommandDescriptor[] },
+    opts?: {
+      parentPath?: string[];
+      commands?: string[];
+      descriptors?: OpenClawPluginCliCommandDescriptor[];
+    },
   ) => {
     const normalizeCommandRoot = (raw: string, source: "command" | "descriptor") => {
       const normalized = normalizeCommandDescriptorName(raw);
@@ -1223,6 +1227,13 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
       }
       return normalized;
     };
+    const parentPath = (opts?.parentPath ?? []).map((segment) =>
+      normalizeCommandRoot(segment, "command"),
+    );
+    if (parentPath.some((segment) => segment === null)) {
+      return;
+    }
+    const normalizedParentPath = parentPath as string[];
     const descriptors = (opts?.descriptors ?? [])
       .map((descriptor) => {
         const name = normalizeCommandRoot(descriptor.name, "descriptor");
@@ -1253,11 +1264,20 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
       });
       return;
     }
+    const serializeCommandPath = (command: string) => [...normalizedParentPath, command].join(" ");
+    const commandPaths = commands.map(serializeCommandPath);
     const existing = registry.cliRegistrars.find((entry) =>
-      entry.commands.some((command) => commands.includes(command)),
+      entry.commands
+        .map((command) => [...(entry.parentPath ?? []), command].join(" "))
+        .some((commandPath) => commandPaths.includes(commandPath)),
     );
     if (existing) {
-      const overlap = commands.find((command) => existing.commands.includes(command));
+      const existingCommandPaths = existing.commands.map((command) =>
+        [...(existing.parentPath ?? []), command].join(" "),
+      );
+      const overlap = commandPaths.find((commandPath) =>
+        existingCommandPaths.includes(commandPath),
+      );
       pushDiagnostic({
         level: "error",
         pluginId: record.id,
@@ -1266,11 +1286,12 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
       });
       return;
     }
-    record.cliCommands.push(...commands);
+    record.cliCommands.push(...commandPaths);
     registry.cliRegistrars.push({
       pluginId: record.id,
       pluginName: record.name,
       register: registrar,
+      parentPath: normalizedParentPath,
       commands,
       descriptors,
       source: record.source,

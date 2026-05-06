@@ -9,6 +9,8 @@ export {
   resolveNodeCommandAllowlist,
 } from "../gateway/node-command-policy.js";
 export type { NodeSession } from "../gateway/node-registry.js";
+export { resolveNodeFromNodeList, resolveNodeIdFromNodeList } from "../shared/node-resolve.js";
+export type { NodeMatchCandidate } from "../shared/node-match.js";
 export {
   respondUnavailableOnNodeInvokeError,
   safeParseJson,

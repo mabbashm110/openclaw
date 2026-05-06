@@ -1,8 +1,18 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import type { Command } from "commander";
+import { runCommandWithRuntime, theme } from "openclaw/plugin-sdk/cli-runtime";
+import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import {
+  callGatewayFromCli,
+  resolveNodeFromNodeList,
+  type NodeMatchCandidate,
+} from "openclaw/plugin-sdk/gateway-runtime";
+import { defaultRuntime } from "openclaw/plugin-sdk/runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
+  shortenHomePath,
 } from "openclaw/plugin-sdk/text-runtime";
 import { buildA2UITextJsonl, validateA2UIJsonl } from "./a2ui-jsonl.js";
 import { canvasSnapshotTempPath, parseCanvasSnapshotPayload } from "./cli-helpers.js";
@@ -56,6 +66,129 @@ export type CanvasCliDependencies = {
   writeBase64ToFile: (filePath: string, base64: string) => Promise<unknown>;
   shortenHomePath: (filePath: string) => string;
 };
+
+type CanvasNodeCandidate = NodeMatchCandidate;
+
+function parseTimeoutMs(raw: unknown): number | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  const value =
+    typeof raw === "number" || typeof raw === "bigint"
+      ? Number(raw)
+      : typeof raw === "string" && raw.trim()
+        ? Number.parseInt(raw.trim(), 10)
+        : Number.NaN;
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function parseNodeCandidates(raw: unknown): CanvasNodeCandidate[] {
+  const payload =
+    raw && typeof raw === "object" ? (raw as { nodes?: unknown; paired?: unknown }) : {};
+  const list = Array.isArray(payload.nodes)
+    ? payload.nodes
+    : Array.isArray(payload.paired)
+      ? payload.paired
+      : [];
+  return list
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const node = entry as {
+        nodeId?: unknown;
+        displayName?: unknown;
+        remoteIp?: unknown;
+        connected?: unknown;
+        clientId?: unknown;
+      };
+      return typeof node.nodeId === "string"
+        ? {
+            nodeId: node.nodeId,
+            ...(typeof node.displayName === "string" && { displayName: node.displayName }),
+            ...(typeof node.remoteIp === "string" && { remoteIp: node.remoteIp }),
+            ...(typeof node.connected === "boolean" && { connected: node.connected }),
+            ...(typeof node.clientId === "string" && { clientId: node.clientId }),
+          }
+        : null;
+    })
+    .filter((entry): entry is CanvasNodeCandidate => entry !== null);
+}
+
+function unauthorizedHintForMessage(message: string): string | null {
+  const haystack = normalizeLowercaseStringOrEmpty(message);
+  if (
+    haystack.includes("unauthorizedclient") ||
+    haystack.includes("bridge client is not authorized") ||
+    haystack.includes("unsigned bridge clients are not allowed")
+  ) {
+    return [
+      "peekaboo bridge rejected the client.",
+      "sign the peekaboo CLI (TeamID Y5PE65HELJ) or launch the host with",
+      "PEEKABOO_ALLOW_UNSIGNED_SOCKET_CLIENTS=1 for local dev.",
+    ].join(" ");
+  }
+  return null;
+}
+
+export function createDefaultCanvasCliDependencies(): CanvasCliDependencies {
+  const nodesCallOpts = (cmd: Command, defaults?: { timeoutMs?: number }) =>
+    cmd
+      .option(
+        "--url <url>",
+        "Gateway WebSocket URL (defaults to gateway.remote.url when configured)",
+      )
+      .option("--token <token>", "Gateway token (if required)")
+      .option("--timeout <ms>", "Timeout in ms", String(defaults?.timeoutMs ?? 10_000))
+      .option("--json", "Output JSON", false);
+  const callGatewayCli: CanvasCliDependencies["callGatewayCli"] = async (
+    method,
+    opts,
+    params,
+    callOpts,
+  ) => {
+    const timeout = String(callOpts?.transportTimeoutMs ?? opts.timeout ?? 10_000);
+    return await callGatewayFromCli(method, { ...opts, timeout }, params, {
+      progress: opts.json !== true,
+    });
+  };
+  return {
+    defaultRuntime,
+    nodesCallOpts,
+    runNodesCommand: (label, action) =>
+      runCommandWithRuntime(defaultRuntime, action, (err) => {
+        const message = formatErrorMessage(err);
+        defaultRuntime.error(theme.error(`nodes ${label} failed: ${message}`));
+        const hint = unauthorizedHintForMessage(message);
+        if (hint) {
+          defaultRuntime.error(theme.warn(hint));
+        }
+        defaultRuntime.exit(1);
+      }),
+    getNodesTheme: () => ({ ok: theme.success }),
+    parseTimeoutMs,
+    resolveNodeId: async (opts, query) => {
+      let raw: unknown;
+      try {
+        raw = await callGatewayCli("node.list", opts, {});
+      } catch {
+        raw = await callGatewayCli("node.pair.list", opts, {});
+      }
+      return resolveNodeFromNodeList(parseNodeCandidates(raw), query).nodeId;
+    },
+    buildNodeInvokeParams: ({ nodeId, command, params, timeoutMs }) => ({
+      nodeId,
+      command,
+      params,
+      idempotencyKey: randomUUID(),
+      ...(typeof timeoutMs === "number" && Number.isFinite(timeoutMs) ? { timeoutMs } : {}),
+    }),
+    callGatewayCli,
+    writeBase64ToFile: async (filePath, base64) =>
+      await fs.writeFile(filePath, Buffer.from(base64, "base64")),
+    shortenHomePath,
+  };
+}
 
 async function invokeCanvas(
   deps: CanvasCliDependencies,

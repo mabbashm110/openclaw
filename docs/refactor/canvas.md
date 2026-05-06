@@ -52,7 +52,6 @@ Done:
 
 Known remaining core-owned Canvas surfaces:
 
-- `src/cli/nodes-cli/register.canvas.ts` remains as a compatibility shim because the current plugin CLI registry owns top-level commands, while Canvas is nested under `nodes canvas`
 - `src/config/types.gateway.ts` and related schema labels/help retain legacy `canvasHost` read/repair compatibility
 - Gateway node hello and `nodes.canvasCapability.refresh` still carry `canvasHostUrl`/capability fields because native clients already speak that protocol shape
 - native app Canvas protocol/client handlers under `apps/`
@@ -95,7 +94,7 @@ Before calling the refactor complete:
 - `rg "canvas-tool|createCanvasTool" src` finds no core-owned Canvas tool implementation.
 - `rg "canvas.present|canvas.snapshot|canvas.a2ui" src/gateway` finds no hardcoded allowlist defaults outside generic plugin policy tests.
 - `rg "canvas-documents" src` is either empty or only imports the Canvas plugin runtime barrel.
-- `rg "registerNodesCanvasCommands|nodes-canvas" src` is either empty or only a compatibility shim that delegates to the Canvas plugin.
+- `rg "registerNodesCanvasCommands|nodes-canvas" src` is empty; the Canvas plugin registers `openclaw nodes canvas` through nested plugin CLI metadata.
 - `rg "createCanvasHostHandler|handleA2uiHttpRequest" src/gateway` returns no gateway runtime ownership.
 - `pnpm plugins:inventory:check` passes.
 - `pnpm plugin-sdk:api:check` passes, or generated API baselines are intentionally updated and reviewed.

@@ -1,4 +1,5 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { createDefaultCanvasCliDependencies, registerNodesCanvasCommands } from "./src/cli.js";
 import { canvasConfigSchema } from "./src/config.js";
 import { A2UI_PATH, CANVAS_HOST_PATH, CANVAS_WS_PATH } from "./src/host/a2ui.js";
 import { createCanvasHttpRouteHandler } from "./src/http-route.js";
@@ -70,6 +71,21 @@ export default definePluginEntry({
         config: ctx.runtimeConfig ?? ctx.config,
         workspaceDir: ctx.workspaceDir,
       }),
+    );
+    api.registerCli(
+      ({ program }) => {
+        registerNodesCanvasCommands(program, createDefaultCanvasCliDependencies());
+      },
+      {
+        parentPath: ["nodes"],
+        descriptors: [
+          {
+            name: "canvas",
+            description: "Capture or render canvas content from a paired node",
+            hasSubcommands: true,
+          },
+        ],
+      },
     );
   },
 });
