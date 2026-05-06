@@ -11,19 +11,6 @@ private struct NodeInvokeRequestPayload: Codable {
     var idempotencyKey: String?
 }
 
-private func replaceCanvasCapabilityInScopedHostUrl(scopedUrl: String, capability: String) -> String? {
-    let marker = "/__openclaw__/cap/"
-    guard let markerRange = scopedUrl.range(of: marker) else { return nil }
-    let capabilityStart = markerRange.upperBound
-    let suffix = scopedUrl[capabilityStart...]
-    let nextSlash = suffix.firstIndex(of: "/")
-    let nextQuery = suffix.firstIndex(of: "?")
-    let nextFragment = suffix.firstIndex(of: "#")
-    let capabilityEnd = [nextSlash, nextQuery, nextFragment].compactMap(\.self).min() ?? scopedUrl.endIndex
-    guard capabilityStart < capabilityEnd else { return nil }
-    return String(scopedUrl[..<capabilityStart]) + capability + String(scopedUrl[capabilityEnd...])
-}
-
 func canonicalizeCanvasHostUrl(raw: String?, activeURL: URL?) -> String? {
     let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     guard !trimmed.isEmpty else { return nil }
@@ -152,7 +139,7 @@ public actor GatewayNodeSession {
     }
 
     private var serverEventSubscribers: [UUID: AsyncStream<EventFrame>.Continuation] = [:]
-    private var canvasHostUrl: String?
+    private var pluginSurfaceUrls: [String: String] = [:]
 
     public init() {}
 
@@ -270,47 +257,7 @@ public actor GatewayNodeSession {
     }
 
     public func currentCanvasHostUrl() -> String? {
-        self.canvasHostUrl
-    }
-
-    public func refreshNodeCanvasCapability(timeoutMs: Int = 8000) async -> Bool {
-        guard let channel = self.channel else { return false }
-        do {
-            let data = try await channel.request(
-                method: "node.canvas.capability.refresh",
-                params: [:],
-                timeoutMs: Double(max(timeoutMs, 1)))
-            guard
-                let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let rawCapability = payload["canvasCapability"] as? String
-            else {
-                self.logger.warning("node.canvas.capability.refresh missing canvasCapability")
-                return false
-            }
-            let capability = rawCapability.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !capability.isEmpty else {
-                self.logger.warning("node.canvas.capability.refresh returned empty capability")
-                return false
-            }
-            let scopedUrl = self.canvasHostUrl?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            guard !scopedUrl.isEmpty else {
-                self.logger.warning("node.canvas.capability.refresh missing local canvasHostUrl")
-                return false
-            }
-            guard let refreshed = replaceCanvasCapabilityInScopedHostUrl(
-                scopedUrl: scopedUrl,
-                capability: capability)
-            else {
-                self.logger.warning("node.canvas.capability.refresh could not rewrite scoped canvas URL")
-                return false
-            }
-            self.canvasHostUrl = refreshed
-            return true
-        } catch {
-            self.logger.warning(
-                "node.canvas.capability.refresh failed: \(error.localizedDescription, privacy: .public)")
-            return false
-        }
+        self.pluginSurfaceUrls["canvas"]
     }
 
     public func currentRemoteAddress() -> String? {
@@ -364,8 +311,7 @@ public actor GatewayNodeSession {
     private func handlePush(_ push: GatewayPush) async {
         switch push {
         case let .snapshot(ok):
-            let raw = ok.canvashosturl?.trimmingCharacters(in: .whitespacesAndNewlines)
-            self.canvasHostUrl = self.normalizeCanvasHostUrl(raw)
+            self.pluginSurfaceUrls = self.normalizePluginSurfaceUrls(ok.pluginsurfaceurls)
             if self.hasEverConnected {
                 self.broadcastServerEvent(
                     EventFrame(type: "event", event: "seqGap", payload: nil, seq: nil, stateversion: nil))
@@ -434,6 +380,13 @@ public actor GatewayNodeSession {
 
     private func normalizeCanvasHostUrl(_ raw: String?) -> String? {
         canonicalizeCanvasHostUrl(raw: raw, activeURL: self.activeURL)
+    }
+
+    private func normalizePluginSurfaceUrls(_ raw: [String: AnyCodable]?) -> [String: String] {
+        guard let raw else { return [:] }
+        return raw.compactMapValues { value in
+            self.normalizeCanvasHostUrl(value.value as? String)
+        }
     }
 
     private func handleEvent(_ evt: EventFrame) async {

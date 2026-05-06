@@ -436,16 +436,6 @@ export const FIELD_HELP: Record<string, string> = {
     "Maximum time in milliseconds Baileys waits for the WhatsApp WebSocket opening handshake. Use a higher value on slow or lossy networks that report opening handshake 408 timeouts.",
   "web.whatsapp.defaultQueryTimeoutMs":
     "Default Baileys query timeout in milliseconds for WhatsApp Web requests. Keep aligned with upstream unless a network-specific investigation shows queries need longer.",
-  canvasHost:
-    "Legacy Canvas host settings. Prefer plugins.entries.canvas.config.host for new config; this compatibility alias still serves existing canvas-enabled workflows.",
-  "canvasHost.enabled":
-    "Legacy alias for enabling the Canvas host server. Prefer plugins.entries.canvas.config.host.enabled for new config.",
-  "canvasHost.root":
-    "Legacy alias for the Canvas host root directory. Prefer plugins.entries.canvas.config.host.root for new config.",
-  "canvasHost.port":
-    "Legacy alias for the Canvas host HTTP port. Prefer plugins.entries.canvas.config.host.port for new config.",
-  "canvasHost.liveReload":
-    "Legacy alias for Canvas live-reload behavior. Prefer plugins.entries.canvas.config.host.liveReload for new config.",
   talk: "Talk-mode voice synthesis settings for voice identity, model selection, output format, and interruption behavior. Use this section to tune human-facing voice UX while controlling latency and cost.",
   "gateway.auth.token":
     "Required by default for gateway access (unless using Tailscale Serve identity); required for non-loopback binds.",

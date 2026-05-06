@@ -26,3 +26,14 @@ export function findMatchingPluginNodeCapabilityRoute(
 ): PluginNodeCapabilityRoute | undefined {
   return findMatchingPluginNodeCapabilityRoutes(registry, context)[0];
 }
+
+export function listPluginNodeCapabilitySurfaces(registry: PluginRegistry): string[] {
+  const surfaces = new Set<string>();
+  for (const route of registry.httpRoutes ?? []) {
+    const surface = route.nodeCapability?.surface?.trim();
+    if (surface) {
+      surfaces.add(surface);
+    }
+  }
+  return [...surfaces].toSorted();
+}

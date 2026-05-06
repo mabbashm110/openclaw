@@ -56,20 +56,12 @@ extension NodeAppModel {
     }
 
     func ensureA2UIReadyWithCapabilityRefresh(timeoutMs: Int = 5000) async -> A2UIReadyState {
-        guard let initialUrl = await self.resolveA2UIHostURLWithCapabilityRefresh() else {
+        guard let initialUrl = await self.resolveA2UIHostURL() else {
             return .hostNotConfigured
         }
         self.screen.navigate(to: initialUrl, trustA2UIActions: true)
         if await self.screen.waitForA2UIReady(timeoutMs: timeoutMs) {
             return .ready(initialUrl)
-        }
-
-        // First render can fail when scoped capability rotates between reconnects.
-        guard await self.gatewaySession.refreshNodeCanvasCapability() else { return .hostUnavailable }
-        guard let refreshedUrl = await self.resolveA2UIHostURL() else { return .hostUnavailable }
-        self.screen.navigate(to: refreshedUrl, trustA2UIActions: true)
-        if await self.screen.waitForA2UIReady(timeoutMs: timeoutMs) {
-            return .ready(refreshedUrl)
         }
         return .hostUnavailable
     }
@@ -80,18 +72,10 @@ extension NodeAppModel {
     }
 
     private func resolveA2UIHostURLWithCapabilityRefresh() async -> String? {
-        if let url = await self.resolveA2UIHostURL() {
-            return url
-        }
-        guard await self.gatewaySession.refreshNodeCanvasCapability() else { return nil }
         return await self.resolveA2UIHostURL()
     }
 
     private func resolveCanvasHostURLWithCapabilityRefresh() async -> String? {
-        if let url = await self.resolveCanvasHostURL() {
-            return url
-        }
-        guard await self.gatewaySession.refreshNodeCanvasCapability() else { return nil }
         return await self.resolveCanvasHostURL()
     }
 

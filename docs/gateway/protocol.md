@@ -105,7 +105,8 @@ handshake failure.
 
 `server`, `features`, `snapshot`, and `policy` are all required by the schema
 (`src/gateway/protocol/schema/frames.ts`). `auth` is also required and reports
-the negotiated role/scopes. `canvasHostUrl` is optional.
+the negotiated role/scopes. `pluginSurfaceUrls` is optional and maps plugin
+surface names, such as `canvas`, to scoped hosted URLs.
 
 When no device token is issued, `hello-ok.auth` reports the negotiated
 permissions without token fields:
@@ -443,7 +444,6 @@ enumeration of `src/gateway/server-methods/*.ts`.
     - `node.invoke` forwards a command to a connected node.
     - `node.invoke.result` returns the result for an invoke request.
     - `node.event` carries node-originated events back into the gateway.
-    - `node.canvas.capability.refresh` refreshes scoped canvas-capability tokens.
     - `node.pending.pull` and `node.pending.ack` are the connected-node queue APIs.
     - `node.pending.enqueue` and `node.pending.drain` manage durable pending work for offline/disconnected nodes.
 

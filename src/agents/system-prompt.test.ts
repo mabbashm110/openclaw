@@ -286,7 +286,6 @@ describe("buildAgentSystemPrompt", () => {
       workspaceDir: "/tmp/openclaw",
       runtimeInfo: {
         channel: "webchat",
-        canvasRootDir: "/Users/example/.openclaw-dev/canvas",
       },
     });
 
@@ -1056,7 +1055,6 @@ describe("buildAgentSystemPrompt", () => {
       runtimeInfo: {
         channel: "telegram",
         capabilities: ["inlineButtons"],
-        canvasRootDir: "/tmp/canvas",
       },
       contextFiles: [
         {

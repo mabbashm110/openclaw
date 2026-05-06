@@ -457,7 +457,7 @@ actor MacNodeRuntime {
     }
 
     private func resolveA2UIHostUrl() async -> String? {
-        guard let raw = await GatewayConnection.shared.canvasHostUrl() else { return nil }
+        guard let raw = await GatewayConnection.shared.canvasPluginSurfaceUrl() else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let baseUrl = URL(string: trimmed) else { return nil }
         return baseUrl.appendingPathComponent("__openclaw__/a2ui/").absoluteString + "?platform=macos"

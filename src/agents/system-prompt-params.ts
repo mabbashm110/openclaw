@@ -1,7 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveCanvasCompatRootDir } from "../config/canvas-compat.js";
-import { resolveStateDir } from "../config/paths.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { findGitRoot } from "../infra/git-root.js";
 import {
@@ -25,7 +23,6 @@ type RuntimeInfoInput = {
   /** Supported message actions for the current channel (e.g., react, edit, unsend) */
   channelActions?: string[];
   repoRoot?: string;
-  canvasRootDir?: string;
 };
 
 type SystemPromptRuntimeParams = {
@@ -50,18 +47,11 @@ export function buildSystemPromptParams(params: {
   const userTimezone = resolveUserTimezone(params.config?.agents?.defaults?.userTimezone);
   const userTimeFormat = resolveUserTimeFormat(params.config?.agents?.defaults?.timeFormat);
   const userTime = formatUserTime(new Date(), userTimezone, userTimeFormat);
-  const stateDir = resolveStateDir(process.env);
-  const canvasRootDir = resolveCanvasCompatRootDir({
-    config: params.config,
-    stateDir,
-    env: process.env,
-  });
   return {
     runtimeInfo: {
       agentId: params.agentId,
       ...params.runtime,
       repoRoot,
-      canvasRootDir,
     },
     userTimezone,
     userTime,

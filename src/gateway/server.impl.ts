@@ -750,7 +750,6 @@ export async function startGatewayServer(
     cfgAtStart.gateway?.handshakeTimeoutMs ?? getRuntimeConfig().gateway?.handshakeTimeoutMs;
   const initialHooksConfig = runtimeConfig.hooksConfig;
   const initialHookClientIpConfig = resolveHookClientIpConfig(cfgAtStart);
-  const canvasHostEnabled = runtimeConfig.canvasHostEnabled;
 
   // Create auth rate limiters used by connect/auth flows.
   const rateLimitConfig = cfgAtStart.gateway?.auth?.rateLimit;
@@ -1318,15 +1317,17 @@ export async function startGatewayServer(
     }
 
     const { attachGatewayWsHandlers } = await import("./server-ws-runtime.js");
-    const canvasHostScheme = gatewayTls.enabled ? "https" : "http";
+    const { listPluginNodeCapabilitySurfaces } =
+      await import("./server/plugins-http/route-capability.js");
+    const pluginSurfaceScheme = gatewayTls.enabled ? "https" : "http";
     attachGatewayWsHandlers({
       wss,
       clients,
       preauthConnectionBudget,
       port,
       gatewayHost: bindHost ?? undefined,
-      canvasHostEnabled,
-      canvasHostScheme,
+      pluginSurfaceScheme,
+      getPluginNodeCapabilitySurfaces: () => listPluginNodeCapabilitySurfaces(pluginRegistry),
       resolvedAuth,
       getResolvedAuth,
       getRequiredSharedGatewaySessionGeneration: () =>

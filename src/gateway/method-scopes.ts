@@ -33,7 +33,6 @@ const NODE_ROLE_METHODS = new Set([
   "node.invoke.result",
   "node.event",
   "node.pending.drain",
-  "node.canvas.capability.refresh",
   "node.pending.pull",
   "node.pending.ack",
   "skills.bins",

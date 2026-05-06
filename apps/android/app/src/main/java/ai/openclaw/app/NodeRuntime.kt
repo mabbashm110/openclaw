@@ -233,7 +233,6 @@ class NodeRuntime(
       smsTelephonyAvailable = { sms.hasTelephonyFeature() },
       callLogAvailable = { SensitiveFeatureConfig.callLogEnabled },
       debugBuild = { BuildConfig.DEBUG },
-      refreshNodeCanvasCapability = { nodeSession.refreshNodeCanvasCapability() },
       onCanvasA2uiPush = {
         _canvasA2uiHydrated.value = true
         _canvasRehydratePending.value = false

@@ -311,9 +311,11 @@ actor GatewayConnection {
         self.lastSnapshot = nil
     }
 
-    func canvasHostUrl() async -> String? {
+    func canvasPluginSurfaceUrl() async -> String? {
         guard let snapshot = self.lastSnapshot else { return nil }
-        let trimmed = snapshot.canvashosturl?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
+        let trimmed =
+            (snapshot.pluginsurfaceurls?["canvas"]?.value as? String)?
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
     }
 

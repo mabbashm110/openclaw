@@ -124,9 +124,8 @@ export type GatewayWsSharedHandlerParams = {
   preauthConnectionBudget: PreauthConnectionBudget;
   port: number;
   gatewayHost?: string;
-  canvasHostEnabled: boolean;
-  canvasHostScheme?: "http" | "https";
-  canvasHostServerPort?: number;
+  pluginSurfaceScheme?: "http" | "https";
+  getPluginNodeCapabilitySurfaces?: () => string[];
   resolvedAuth: ResolvedGatewayAuth;
   getResolvedAuth?: () => ResolvedGatewayAuth;
   getRequiredSharedGatewaySessionGeneration?: () => string | undefined;
@@ -200,9 +199,8 @@ export function attachGatewayWsConnectionHandler(params: AttachGatewayWsConnecti
     preauthConnectionBudget,
     port,
     gatewayHost,
-    canvasHostEnabled,
-    canvasHostScheme,
-    canvasHostServerPort,
+    pluginSurfaceScheme,
+    getPluginNodeCapabilitySurfaces,
     resolvedAuth,
     getResolvedAuth = () => resolvedAuth,
     getRequiredSharedGatewaySessionGeneration = () =>
@@ -250,17 +248,20 @@ export function attachGatewayWsConnectionHandler(params: AttachGatewayWsConnecti
     const forwardedFor = headerValue(upgradeReq.headers["x-forwarded-for"]);
     const realIp = headerValue(upgradeReq.headers["x-real-ip"]);
 
-    const canvasHostPortForWs = canvasHostServerPort ?? (canvasHostEnabled ? port : undefined);
-    const canvasHostOverride =
+    const pluginNodeCapabilitySurfaces = getPluginNodeCapabilitySurfaces?.() ?? [];
+    const pluginSurfaceHostOverride =
       gatewayHost && gatewayHost !== "0.0.0.0" && gatewayHost !== "::" ? gatewayHost : undefined;
-    const canvasHostUrl = resolveHostedPluginSurfaceUrl({
-      port: canvasHostPortForWs,
-      hostOverride: canvasHostServerPort ? canvasHostOverride : undefined,
-      requestHost: upgradeReq.headers.host,
-      forwardedProto: upgradeReq.headers["x-forwarded-proto"],
-      localAddress: upgradeReq.socket?.localAddress,
-      scheme: canvasHostScheme,
-    });
+    const pluginSurfaceBaseUrl =
+      pluginNodeCapabilitySurfaces.length > 0
+        ? resolveHostedPluginSurfaceUrl({
+            port,
+            hostOverride: pluginSurfaceHostOverride,
+            requestHost: upgradeReq.headers.host,
+            forwardedProto: upgradeReq.headers["x-forwarded-proto"],
+            localAddress: upgradeReq.socket?.localAddress,
+            scheme: pluginSurfaceScheme,
+          })
+        : undefined;
 
     logWs("in", "open", { connId, remoteAddr, remotePort, localAddr, localPort, endpoint });
     let handshakeState: "pending" | "connected" | "failed" = "pending";
@@ -448,7 +449,8 @@ export function attachGatewayWsConnectionHandler(params: AttachGatewayWsConnecti
       requestHost,
       requestOrigin,
       requestUserAgent,
-      canvasHostUrl,
+      pluginSurfaceBaseUrl,
+      pluginNodeCapabilitySurfaces,
       connectNonce,
       getResolvedAuth,
       getRequiredSharedGatewaySessionGeneration,

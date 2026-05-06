@@ -28,15 +28,10 @@ describe("Canvas plugin config", () => {
     });
   });
 
-  it("prefers plugin host config over the legacy canvasHost alias", () => {
+  it("resolves host config from the plugin entry only", () => {
     expect(
       resolveCanvasHostConfig({
         config: {
-          canvasHost: {
-            enabled: true,
-            root: "/legacy",
-            liveReload: true,
-          },
           plugins: {
             entries: {
               canvas: {

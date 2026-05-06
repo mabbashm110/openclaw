@@ -13,8 +13,6 @@ export type PluginNodeCapabilitySurface = {
 
 export type PluginNodeCapabilityClient = {
   pluginNodeCapabilities?: Record<string, { capability: string; expiresAtMs: number }>;
-  canvasCapability?: string;
-  canvasCapabilityExpiresAtMs?: number;
 };
 
 export type NormalizedPluginNodeCapabilityUrl = {
@@ -144,22 +142,12 @@ export function hasAuthorizedPluginNodeCapability(params: {
   const nowMs = params.nowMs ?? Date.now();
   const ttlMs = resolvePluginNodeCapabilityTtlMs(params.surface);
   for (const client of params.clients) {
-    const entry =
-      client.pluginNodeCapabilities?.[surface] ??
-      (surface === "canvas" && client.canvasCapability
-        ? {
-            capability: client.canvasCapability,
-            expiresAtMs: client.canvasCapabilityExpiresAtMs ?? 0,
-          }
-        : undefined);
+    const entry = client.pluginNodeCapabilities?.[surface];
     if (!entry || entry.expiresAtMs <= nowMs) {
       continue;
     }
     if (safeEqualSecret(entry.capability, params.capability)) {
       entry.expiresAtMs = nowMs + ttlMs;
-      if (surface === "canvas") {
-        client.canvasCapabilityExpiresAtMs = entry.expiresAtMs;
-      }
       return true;
     }
   }

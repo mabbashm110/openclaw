@@ -83,13 +83,7 @@ export function resolveCanvasHostConfig(params: {
   const pluginConfig =
     params.pluginConfig ?? resolvePluginConfigObject(params.config, "canvas") ?? {};
   const parsedPluginConfig = parseCanvasPluginConfig(pluginConfig);
-  const legacyCanvasHost = parseCanvasHostConfig(
-    (params.config as { canvasHost?: unknown } | undefined)?.canvasHost,
-  );
-  return {
-    ...legacyCanvasHost,
-    ...parsedPluginConfig.host,
-  };
+  return parsedPluginConfig.host ?? {};
 }
 
 export function isCanvasHostEnabled(config?: OpenClawConfig): boolean {

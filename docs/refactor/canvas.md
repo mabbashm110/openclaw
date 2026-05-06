@@ -43,7 +43,6 @@ Done:
 - Moved Canvas host URL and scoped capability helpers into `extensions/canvas/src`.
 - Moved Canvas node command defaults out of hardcoded core lists and into plugin `nodeInvokePolicies`.
 - Added plugin-owned Canvas host config at `plugins.entries.canvas.config.host`.
-- Added a Canvas plugin setup migration so `openclaw doctor --fix` rewrites legacy top-level `canvasHost` config into `plugins.entries.canvas.config.host`.
 - Moved Canvas and A2UI HTTP serving behind Canvas plugin HTTP route registration.
 - Added generic plugin WebSocket upgrade dispatch for plugin-owned HTTP routes.
 - Replaced Canvas-specific gateway host URL and node capability auth with generic hosted plugin surface and node capability helpers.
@@ -52,14 +51,13 @@ Done:
 - Removed production `src/**` imports of `extensions/canvas/runtime-api.js`.
 - Moved the A2UI bundle source from `apps/shared/OpenClawKit/Tools/CanvasA2UI` to `extensions/canvas/src/host/a2ui-app`.
 - Moved A2UI build/copy implementation under `extensions/canvas/scripts` and replaced root build wiring with generic bundled-plugin asset hooks.
-- Kept top-level `canvasHost` as a legacy read compatibility alias while doctor repairs old configs.
+- Removed the legacy top-level `canvasHost` config alias and Canvas doctor migration.
 - Updated generated plugin inventory to include Canvas.
 - Added plugin reference docs at `docs/plugins/reference/canvas.md`.
 
 Known remaining core-owned Canvas surfaces:
 
-- `src/config/types.gateway.ts` and related schema labels/help retain legacy `canvasHost` read/repair compatibility
-- Gateway node hello and `nodes.canvasCapability.refresh` still carry `canvasHostUrl`/capability fields because native clients already speak that protocol shape
+- Native app Canvas handlers under `apps/` still intentionally consume the Canvas plugin surface
 - native app Canvas protocol/client handlers under `apps/`
 - published artifact output still uses `dist/canvas-host/a2ui` for backwards-compatible runtime lookup, but the copy step is now plugin-owned
 
@@ -84,8 +82,8 @@ Core should own only generic seams:
 - generic gateway HTTP/auth and WebSocket upgrade dispatch
 - generic hosted plugin surface URL resolution
 - generic hosted media resolver registration
-- generic node capability transport plus the existing Canvas protocol fields until native clients have a plugin-generic replacement
-- generic config plumbing plus the legacy `canvasHost` alias for existing Canvas config
+- generic node capability transport
+- generic config plumbing
 - generic bundled-plugin asset hook discovery
 
 Native apps may keep Canvas command handlers as clients of the protocol. They are not the plugin runtime owner.
@@ -93,9 +91,8 @@ Native apps may keep Canvas command handlers as clients of the protocol. They ar
 ## Migration steps
 
 1. Treat `plugins.entries.canvas.config.host` as the plugin-owned config surface.
-2. Let `openclaw doctor --fix` migrate legacy `canvasHost` into `plugins.entries.canvas.config.host`.
-3. Update docs so Canvas is described as an experimental bundled plugin.
-4. Run focused Canvas tests, plugin inventory checks, plugin SDK API checks, and build/type gates affected by runtime boundaries.
+2. Update docs so Canvas is described as an experimental bundled plugin.
+3. Run focused Canvas tests, plugin inventory checks, plugin SDK API checks, and build/type gates affected by runtime boundaries.
 
 ## Audit checklist
 

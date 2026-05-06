@@ -38,16 +38,6 @@ export type DiscoveryConfig = {
   mdns?: MdnsDiscoveryConfig;
 };
 
-export type CanvasHostConfig = {
-  enabled?: boolean;
-  /** @deprecated Legacy alias for plugins.entries.canvas.config.host.root. */
-  root?: string;
-  /** @deprecated Legacy alias for plugins.entries.canvas.config.host.port. */
-  port?: number;
-  /** @deprecated Legacy alias for plugins.entries.canvas.config.host.liveReload. */
-  liveReload?: boolean;
-};
-
 export type TalkProviderConfig = {
   /** Provider API key (optional; provider-specific env fallback may apply). */
   apiKey?: SecretInput;

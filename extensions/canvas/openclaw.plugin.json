@@ -9,9 +9,6 @@
   "contracts": {
     "tools": ["canvas"]
   },
-  "configContracts": {
-    "compatibilityMigrationPaths": ["canvasHost"]
-  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

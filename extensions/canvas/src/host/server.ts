@@ -321,7 +321,7 @@ export async function createCanvasHostHandler(
     }
     watcherClosed = true;
     opts.runtime.error(
-      `canvasHost watcher error: ${String(err)} (live reload disabled; consider canvasHost.liveReload=false or a smaller canvasHost.root)`,
+      `Canvas host watcher error: ${String(err)} (live reload disabled; consider plugins.entries.canvas.config.host.liveReload=false or a smaller plugins.entries.canvas.config.host.root)`,
     );
     void watcher.close().catch(() => {});
   });
@@ -412,7 +412,7 @@ export async function createCanvasHostHandler(
       res.end(data);
       return true;
     } catch (err) {
-      opts.runtime.error(`canvasHost request failed: ${String(err)}`);
+      opts.runtime.error(`Canvas host request failed: ${String(err)}`);
       res.statusCode = 500;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.end("error");
@@ -482,7 +482,7 @@ export async function startCanvasHost(opts: CanvasHostServerOpts): Promise<Canva
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.end("Not Found");
     })().catch((err) => {
-      opts.runtime.error(`canvasHost request failed: ${String(err)}`);
+      opts.runtime.error(`Canvas host request failed: ${String(err)}`);
       res.statusCode = 500;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.end("error");

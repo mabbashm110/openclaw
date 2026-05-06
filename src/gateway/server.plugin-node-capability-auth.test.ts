@@ -169,9 +169,13 @@ function makeWsClient(params: {
   clientIp: string;
   role: "node" | "operator";
   mode: "node" | "backend" | "webchat";
-  canvasCapability?: string;
-  canvasCapabilityExpiresAtMs?: number;
+  capability?: string;
+  capabilityExpiresAtMs?: number;
 }): GatewayWsClient {
+  const pluginNodeCapabilities =
+    params.capability && params.capabilityExpiresAtMs !== undefined
+      ? { canvas: { capability: params.capability, expiresAtMs: params.capabilityExpiresAtMs } }
+      : undefined;
   return {
     socket: {} as unknown as WebSocket,
     connect: {
@@ -183,8 +187,7 @@ function makeWsClient(params: {
     connId: params.connId,
     usesSharedGatewayAuth: false,
     clientIp: params.clientIp,
-    canvasCapability: params.canvasCapability,
-    canvasCapabilityExpiresAtMs: params.canvasCapabilityExpiresAtMs,
+    ...(pluginNodeCapabilities ? { pluginNodeCapabilities } : {}),
   };
 }
 
@@ -215,7 +218,7 @@ async function withCanvasGatewayHarness(params: {
 }) {
   const clients = new Set<GatewayWsClient>();
   const canvasWss = new WebSocketServer({ noServer: true });
-  const canvasHost: CanvasHostHandler = {
+  const canvasHandler: CanvasHostHandler = {
     rootDir: "test",
     basePath: "/canvas",
     close: async () => {},
@@ -248,7 +251,7 @@ async function withCanvasGatewayHarness(params: {
         res.end("A2UI assets not found");
         return true;
       }
-      return canvasHost.handleHttpRequest(req, res);
+      return canvasHandler.handleHttpRequest(req, res);
     },
     resolvePluginNodeCapabilityRoute: () => ({ surface: "canvas" }),
     resolvedAuth: params.resolvedAuth,
@@ -260,7 +263,8 @@ async function withCanvasGatewayHarness(params: {
   attachGatewayUpgradeHandler({
     httpServer,
     wss,
-    handlePluginUpgrade: async (req, socket, head) => canvasHost.handleUpgrade(req, socket, head),
+    handlePluginUpgrade: async (req, socket, head) =>
+      canvasHandler.handleUpgrade(req, socket, head),
     resolvePluginNodeCapabilityRoute: () => ({ surface: "canvas" }),
     clients,
     preauthConnectionBudget: createPreauthConnectionBudget(8),
@@ -335,8 +339,8 @@ describe("gateway plugin node capability auth", () => {
               clientIp: "192.168.1.10",
               role: "operator",
               mode: "webchat",
-              canvasCapability: webchatCapability,
-              canvasCapabilityExpiresAtMs: Date.now() + 60_000,
+              capability: webchatCapability,
+              capabilityExpiresAtMs: Date.now() + 60_000,
             }),
           );
 
@@ -351,8 +355,8 @@ describe("gateway plugin node capability auth", () => {
               clientIp: "192.168.1.20",
               role: "node",
               mode: "node",
-              canvasCapability: expiredNodeCapability,
-              canvasCapabilityExpiresAtMs: Date.now() - 1,
+              capability: expiredNodeCapability,
+              capabilityExpiresAtMs: Date.now() - 1,
             }),
           );
 
@@ -366,8 +370,8 @@ describe("gateway plugin node capability auth", () => {
             clientIp: "192.168.1.30",
             role: "node",
             mode: "node",
-            canvasCapability: activeNodeCapability,
-            canvasCapabilityExpiresAtMs: Date.now() + 60_000,
+            capability: activeNodeCapability,
+            capabilityExpiresAtMs: Date.now() + 60_000,
           });
           clients.add(activeNodeClient);
 
@@ -408,8 +412,8 @@ describe("gateway plugin node capability auth", () => {
               clientIp: "127.0.0.1",
               role: "node",
               mode: "node",
-              canvasCapability: "unused",
-              canvasCapabilityExpiresAtMs: Date.now() + 60_000,
+              capability: "unused",
+              capabilityExpiresAtMs: Date.now() + 60_000,
             }),
           );
 
@@ -488,8 +492,8 @@ describe("gateway plugin node capability auth", () => {
                   clientIp: "fd12:3456:789a::2",
                   role: "node",
                   mode: "node",
-                  canvasCapability: capability,
-                  canvasCapabilityExpiresAtMs: Date.now() + 60_000,
+                  capability,
+                  capabilityExpiresAtMs: Date.now() + 60_000,
                 }),
               );
 

@@ -21,9 +21,7 @@ export type GatewayClient = {
   connect: ConnectParams;
   connId?: string;
   clientIp?: string;
-  canvasHostUrl?: string;
-  canvasCapability?: string;
-  canvasCapabilityExpiresAtMs?: number;
+  pluginSurfaceUrls?: Record<string, string>;
   pluginNodeCapabilities?: Record<string, { capability: string; expiresAtMs: number }>;
   isDeviceTokenAuth?: boolean;
   internal?: {

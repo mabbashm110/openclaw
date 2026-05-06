@@ -87,7 +87,6 @@ async function connectTestWs(
     clients: clients as never,
     preauthConnectionBudget: { release: vi.fn() } as never,
     port: 19001,
-    canvasHostEnabled: false,
     resolvedAuth: createResolvedAuth("token"),
     preauthHandshakeTimeoutMs: 60_000,
     gatewayMethods: [],
@@ -153,20 +152,22 @@ describe("attachGatewayWsConnectionHandler", () => {
     );
   });
 
-  it("uses the gateway TLS scheme for canvas host URLs", async () => {
+  it("threads generic plugin surface URLs into the handshake handler", async () => {
     const { passed } = await connectTestWs({
       host: "gateway.example.com",
       options: {
         port: 18789,
-        canvasHostEnabled: true,
-        canvasHostScheme: "https",
+        pluginSurfaceScheme: "https",
+        getPluginNodeCapabilitySurfaces: () => ["canvas"],
       },
     });
 
     const handlerParams = passed as {
-      canvasHostUrl?: string;
+      pluginSurfaceBaseUrl?: string;
+      pluginNodeCapabilitySurfaces?: string[];
     };
-    expect(handlerParams.canvasHostUrl).toBe("https://gateway.example.com:443");
+    expect(handlerParams.pluginSurfaceBaseUrl).toBe("https://gateway.example.com:443");
+    expect(handlerParams.pluginNodeCapabilitySurfaces).toEqual(["canvas"]);
   });
 
   it("rejects late client registration after a pre-connect socket close", async () => {

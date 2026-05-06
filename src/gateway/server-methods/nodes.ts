@@ -34,12 +34,6 @@ import {
 import { applyPluginNodeInvokePolicy } from "../node-invoke-plugin-policy.js";
 import { sanitizeNodeInvokeParamsForForwarding } from "../node-invoke-sanitize.js";
 import {
-  buildPluginNodeCapabilityScopedHostUrl,
-  mintPluginNodeCapabilityToken,
-  resolvePluginNodeCapabilityTtlMs,
-  setClientPluginNodeCapability,
-} from "../plugin-node-capability.js";
-import {
   type ConnectParams,
   ErrorCodes,
   errorShape,
@@ -847,62 +841,6 @@ export const nodeHandlers: GatewayRequestHandlers = {
       }
       respond(true, { ts: Date.now(), ...node }, undefined);
     });
-  },
-  "node.canvas.capability.refresh": async ({ params, respond, client }) => {
-    if (!validateNodeListParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.canvas.capability.refresh",
-        validator: validateNodeListParams,
-      });
-      return;
-    }
-    const baseCanvasHostUrl = normalizeOptionalString(client?.canvasHostUrl) ?? "";
-    if (!baseCanvasHostUrl) {
-      respond(
-        false,
-        undefined,
-        errorShape(ErrorCodes.UNAVAILABLE, "canvas host unavailable for this node session"),
-      );
-      return;
-    }
-
-    const canvasNodeCapability = { surface: "canvas" };
-    const canvasCapability = mintPluginNodeCapabilityToken();
-    const canvasCapabilityExpiresAtMs =
-      Date.now() + resolvePluginNodeCapabilityTtlMs(canvasNodeCapability);
-    const scopedCanvasHostUrl = buildPluginNodeCapabilityScopedHostUrl(
-      baseCanvasHostUrl,
-      canvasCapability,
-    );
-    if (!scopedCanvasHostUrl) {
-      respond(
-        false,
-        undefined,
-        errorShape(ErrorCodes.UNAVAILABLE, "failed to mint scoped canvas host URL"),
-      );
-      return;
-    }
-
-    if (client) {
-      client.canvasCapability = canvasCapability;
-      client.canvasCapabilityExpiresAtMs = canvasCapabilityExpiresAtMs;
-      setClientPluginNodeCapability({
-        client,
-        surface: canvasNodeCapability,
-        capability: canvasCapability,
-        expiresAtMs: canvasCapabilityExpiresAtMs,
-      });
-    }
-    respond(
-      true,
-      {
-        canvasCapability,
-        canvasCapabilityExpiresAtMs,
-        canvasHostUrl: scopedCanvasHostUrl,
-      },
-      undefined,
-    );
   },
   "node.pending.pull": async ({ params, respond, client, context }) => {
     if (!validateNodeListParams(params)) {

@@ -128,20 +128,4 @@ describe("plugin node capability helpers", () => {
       }),
     ).toBe(false);
   });
-
-  test("keeps legacy canvas capability compatibility", () => {
-    const client = makeClient({
-      canvasCapability: "legacy-canvas-token",
-      canvasCapabilityExpiresAtMs: 1_500,
-    });
-    expect(
-      hasAuthorizedPluginNodeCapability({
-        clients: new Set([client]),
-        surface: { surface: "canvas", ttlMs: 100 },
-        capability: "legacy-canvas-token",
-        nowMs: 1_000,
-      }),
-    ).toBe(true);
-    expect(client.canvasCapabilityExpiresAtMs).toBe(1_100);
-  });
 });

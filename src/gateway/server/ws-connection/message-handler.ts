@@ -188,7 +188,8 @@ export type GatewayWsMessageHandlerParams = {
   requestHost?: string;
   requestOrigin?: string;
   requestUserAgent?: string;
-  canvasHostUrl?: string;
+  pluginSurfaceBaseUrl?: string;
+  pluginNodeCapabilitySurfaces?: string[];
   connectNonce: string;
   getResolvedAuth: () => ResolvedGatewayAuth;
   getRequiredSharedGatewaySessionGeneration?: () => string | undefined;
@@ -232,7 +233,8 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
     requestHost,
     requestOrigin,
     requestUserAgent,
-    canvasHostUrl,
+    pluginSurfaceBaseUrl,
+    pluginNodeCapabilitySurfaces = [],
     connectNonce,
     getResolvedAuth,
     getRequiredSharedGatewaySessionGeneration,
@@ -1313,21 +1315,34 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           return;
         }
 
-        const canvasNodeCapability = { surface: "canvas" };
-        const canvasCapability = canvasHostUrl ? mintPluginNodeCapabilityToken() : undefined;
-        const canvasCapabilityExpiresAtMs = canvasCapability
-          ? Date.now() + resolvePluginNodeCapabilityTtlMs(canvasNodeCapability)
-          : undefined;
+        const pluginSurfaceUrls: Record<string, string> = {};
+        const pendingPluginNodeCapabilities: Array<{
+          surface: { surface: string };
+          capability: string;
+          expiresAtMs: number;
+        }> = [];
+        if (pluginSurfaceBaseUrl) {
+          for (const surface of pluginNodeCapabilitySurfaces) {
+            const pluginCapabilitySurface = { surface };
+            const capability = mintPluginNodeCapabilityToken();
+            const expiresAtMs =
+              Date.now() + resolvePluginNodeCapabilityTtlMs(pluginCapabilitySurface);
+            const scopedUrl =
+              buildPluginNodeCapabilityScopedHostUrl(pluginSurfaceBaseUrl, capability) ??
+              pluginSurfaceBaseUrl;
+            pluginSurfaceUrls[surface] = scopedUrl;
+            pendingPluginNodeCapabilities.push({
+              surface: pluginCapabilitySurface,
+              capability,
+              expiresAtMs,
+            });
+          }
+        }
         const usesSharedGatewayAuth =
           authMethod === "token" || authMethod === "password" || authMethod === "trusted-proxy";
         const sharedGatewaySessionGeneration = usesSharedGatewayAuth
           ? resolveSharedGatewaySessionGeneration(resolvedAuth, trustedProxies)
           : undefined;
-        const scopedCanvasHostUrl =
-          canvasHostUrl && canvasCapability
-            ? (buildPluginNodeCapabilityScopedHostUrl(canvasHostUrl, canvasCapability) ??
-              canvasHostUrl)
-            : canvasHostUrl;
         clearHandshakeTimer();
         const nextClient: GatewayWsClient = {
           socket,
@@ -1338,16 +1353,14 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           sharedGatewaySessionGeneration,
           presenceKey,
           clientIp: reportedClientIp,
-          canvasHostUrl,
-          canvasCapability,
-          canvasCapabilityExpiresAtMs,
+          ...(Object.keys(pluginSurfaceUrls).length > 0 ? { pluginSurfaceUrls } : {}),
         };
-        if (canvasCapability && canvasCapabilityExpiresAtMs) {
+        for (const entry of pendingPluginNodeCapabilities) {
           setClientPluginNodeCapability({
             client: nextClient,
-            surface: canvasNodeCapability,
-            capability: canvasCapability,
-            expiresAtMs: canvasCapabilityExpiresAtMs,
+            surface: entry.surface,
+            capability: entry.capability,
+            expiresAtMs: entry.expiresAtMs,
           });
         }
         setSocketMaxPayload(socket, MAX_PAYLOAD_BYTES);
@@ -1472,7 +1485,7 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           },
           features: { methods: gatewayMethods, events },
           snapshot,
-          canvasHostUrl: scopedCanvasHostUrl,
+          ...(Object.keys(pluginSurfaceUrls).length > 0 ? { pluginSurfaceUrls } : {}),
           auth: {
             role,
             scopes: helloOkAuthScopes,
