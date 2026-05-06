@@ -50,6 +50,8 @@ Done:
 - Added plugin-owned hosted media resolvers so Canvas document URLs resolve through the Canvas plugin instead of core importing Canvas document internals.
 - Added `api.registerNodeCliFeature(...)` so Canvas can declare `openclaw nodes canvas` as a plugin-owned node feature without manually spelling the parent command path.
 - Removed production `src/**` imports of `extensions/canvas/runtime-api.js`.
+- Moved the A2UI bundle source from `apps/shared/OpenClawKit/Tools/CanvasA2UI` to `extensions/canvas/src/host/a2ui-app`.
+- Moved A2UI build/copy implementation under `extensions/canvas/scripts` and replaced root build wiring with generic bundled-plugin asset hooks.
 - Kept top-level `canvasHost` as a legacy read compatibility alias while doctor repairs old configs.
 - Updated generated plugin inventory to include Canvas.
 - Added plugin reference docs at `docs/plugins/reference/canvas.md`.
@@ -59,7 +61,7 @@ Known remaining core-owned Canvas surfaces:
 - `src/config/types.gateway.ts` and related schema labels/help retain legacy `canvasHost` read/repair compatibility
 - Gateway node hello and `nodes.canvasCapability.refresh` still carry `canvasHostUrl`/capability fields because native clients already speak that protocol shape
 - native app Canvas protocol/client handlers under `apps/`
-- build/package output still copies A2UI to `dist/canvas-host/a2ui` for published artifact compatibility
+- published artifact output still uses `dist/canvas-host/a2ui` for backwards-compatible runtime lookup, but the copy step is now plugin-owned
 
 ## Target shape
 
@@ -69,6 +71,7 @@ Known remaining core-owned Canvas surfaces:
 - agent tool registration
 - node invoke command policy
 - Canvas host and A2UI runtime
+- Canvas A2UI bundle source and asset build/copy scripts
 - Canvas document creation and asset resolution
 - Canvas CLI implementation
 - Canvas docs page and plugin inventory entry
@@ -83,6 +86,7 @@ Core should own only generic seams:
 - generic hosted media resolver registration
 - generic node capability transport plus the existing Canvas protocol fields until native clients have a plugin-generic replacement
 - generic config plumbing plus the legacy `canvasHost` alias for existing Canvas config
+- generic bundled-plugin asset hook discovery
 
 Native apps may keep Canvas command handlers as clients of the protocol. They are not the plugin runtime owner.
 
@@ -104,6 +108,7 @@ Before calling the refactor complete:
 - `rg "canvas-documents" src` is empty.
 - `rg "registerNodesCanvasCommands|nodes-canvas" src` is empty; the Canvas plugin registers `openclaw nodes canvas` through nested plugin CLI metadata.
 - `rg "createCanvasHostHandler|handleA2uiHttpRequest" src/gateway` returns no gateway runtime ownership.
+- `rg "apps/shared/OpenClawKit/Tools/CanvasA2UI|canvas-a2ui-copy|extensions/canvas/src/host/a2ui" scripts .github package.json` finds only compatibility wrappers or plugin-owned paths.
 - `pnpm plugins:inventory:check` passes.
 - `pnpm plugin-sdk:api:check` passes, or generated API baselines are intentionally updated and reviewed.
 - Targeted Canvas tests pass.
@@ -118,7 +123,7 @@ Use targeted local checks while iterating:
 pnpm test extensions/canvas/src/host/server.test.ts extensions/canvas/src/host/server.state-dir.test.ts extensions/canvas/src/host/file-resolver.test.ts
 pnpm test src/gateway/server.plugin-node-capability-auth.test.ts src/gateway/server-import-boundary.test.ts
 pnpm test extensions/canvas/src/config-migration.test.ts src/commands/doctor-legacy-config.migrations.test.ts
-pnpm test test/scripts/changed-lanes.test.ts test/scripts/bundle-a2ui.test.ts
+pnpm test test/scripts/changed-lanes.test.ts test/scripts/build-all.test.ts test/scripts/bundle-a2ui.test.ts test/scripts/bundled-plugin-assets.test.ts src/scripts/canvas-a2ui-copy.test.ts src/infra/run-node.test.ts
 pnpm tsgo:extensions
 pnpm plugins:inventory:check
 pnpm plugin-sdk:api:check

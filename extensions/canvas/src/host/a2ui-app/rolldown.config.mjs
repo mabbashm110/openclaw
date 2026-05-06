@@ -1,6 +1,6 @@
-import path from "node:path";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -8,16 +8,7 @@ const repoRoot = path.resolve(here, "../../../../..");
 const require = createRequire(import.meta.url);
 const uiRoot = path.resolve(repoRoot, "ui");
 const fromHere = (p) => path.resolve(here, p);
-const outputFile = path.resolve(
-  here,
-  "../../../../..",
-  "extensions",
-  "canvas",
-  "src",
-  "host",
-  "a2ui",
-  "a2ui.bundle.js",
-);
+const outputFile = path.resolve(here, "..", "a2ui", "a2ui.bundle.js");
 
 const a2uiLitIndex = require.resolve("@a2ui/lit");
 const a2uiLitUi = require.resolve("@a2ui/lit/ui");

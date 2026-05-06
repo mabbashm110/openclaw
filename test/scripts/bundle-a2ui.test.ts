@@ -6,17 +6,17 @@ import {
   getBundleHashRepoInputPaths,
   getLocalRolldownCliCandidates,
   isBundleHashInputPath,
-} from "../../scripts/bundle-a2ui.mjs";
+} from "../../extensions/canvas/scripts/bundle-a2ui.mjs";
 
 describe("scripts/bundle-a2ui.mjs", () => {
-  it("uses package metadata and CanvasA2UI sources as bundle hash inputs", () => {
+  it("uses package metadata and plugin-owned A2UI sources as bundle hash inputs", () => {
     const repoRoot = path.resolve("repo-root");
     const inputPaths = getBundleHashRepoInputPaths(repoRoot);
 
     expect(inputPaths).toContain(path.join(repoRoot, "package.json"));
     expect(inputPaths).toContain(path.join(repoRoot, "pnpm-lock.yaml"));
     expect(inputPaths).toContain(
-      path.join(repoRoot, "apps", "shared", "OpenClawKit", "Tools", "CanvasA2UI"),
+      path.join(repoRoot, "extensions", "canvas", "src", "host", "a2ui-app"),
     );
     expect(inputPaths).not.toContain(path.join(repoRoot, "vendor", "a2ui", "renderers", "lit"));
     expect(isBundleHashInputPath(path.join(repoRoot, "package.json"), repoRoot)).toBe(true);

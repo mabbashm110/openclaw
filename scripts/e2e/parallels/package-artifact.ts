@@ -107,7 +107,7 @@ async function ensureCurrentBuildUnlocked(input: {
   }
   const drift = run(
     "git",
-    ["status", "--porcelain", "--", "extensions/canvas/src/host/a2ui/.bundle.hash"],
+    ["status", "--porcelain", "--", ":(glob)extensions/*/src/host/**/.bundle.hash"],
     {
       quiet: true,
     },

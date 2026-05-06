@@ -853,21 +853,19 @@ describe("scripts/changed-lanes", () => {
     expect(plan.commands.map((command) => command.args[0])).not.toContain("tsgo:all");
   });
 
-  it("routes CanvasA2UI bundle changes to core and tooling instead of all lanes", () => {
+  it("routes A2UI bundle source changes as extension changes", () => {
     const result = detectChangedLanes([
-      "apps/shared/OpenClawKit/Tools/CanvasA2UI/bootstrap.js",
-      "apps/shared/OpenClawKit/Tools/CanvasA2UI/rolldown.config.mjs",
+      "extensions/canvas/src/host/a2ui-app/bootstrap.js",
+      "extensions/canvas/src/host/a2ui-app/rolldown.config.mjs",
     ]);
     const plan = createChangedCheckPlan(result);
 
     expect(result.lanes).toMatchObject({
-      core: true,
-      coreTests: true,
-      tooling: true,
+      extensions: true,
+      extensionTests: true,
       all: false,
     });
-    expect(plan.commands.map((command) => command.args[0])).toContain("lint:scripts");
-    expect(plan.commands.map((command) => command.args[0])).toContain("tsgo:core");
+    expect(plan.commands.map((command) => command.args[0])).toContain("tsgo:extensions");
     expect(plan.commands.map((command) => command.args[0])).not.toContain("tsgo:all");
   });
 
@@ -887,9 +885,9 @@ describe("scripts/changed-lanes", () => {
     expect(plan.commands.map((command) => command.args[0])).not.toContain("test");
   });
 
-  it("does not route generated A2UI artifacts as direct Vitest targets", () => {
+  it("does not route generated plugin bundle artifacts as direct Vitest targets", () => {
     const result = detectChangedLanes([
-      "extensions/canvas/src/host/a2ui/.bundle.hash",
+      "extensions/demo/src/host/assets/.bundle.hash",
       "test/scripts/bundle-a2ui.test.ts",
     ]);
     const plan = createChangedCheckPlan(result);

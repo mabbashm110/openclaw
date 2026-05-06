@@ -13,6 +13,10 @@
   "openclaw": {
     "extensions": [
       "./index.ts"
-    ]
+    ],
+    "assetScripts": {
+      "build": "node scripts/bundle-a2ui.mjs",
+      "copy": "node scripts/copy-a2ui.mjs"
+    }
   }
 }

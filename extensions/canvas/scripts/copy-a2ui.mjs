@@ -1,21 +1,23 @@
+#!/usr/bin/env node
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const pluginDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const rootDir = path.resolve(pluginDir, "../..");
 
 function getA2uiPaths(env = process.env) {
-  const srcDir =
-    env.OPENCLAW_A2UI_SRC_DIR ?? path.join(repoRoot, "extensions", "canvas", "src", "host", "a2ui");
-  const outDir = env.OPENCLAW_A2UI_OUT_DIR ?? path.join(repoRoot, "dist", "canvas-host", "a2ui");
+  const srcDir = env.OPENCLAW_A2UI_SRC_DIR ?? path.join(pluginDir, "src", "host", "a2ui");
+  const outDir = env.OPENCLAW_A2UI_OUT_DIR ?? path.join(rootDir, "dist", "canvas-host", "a2ui");
   return { srcDir, outDir };
 }
 
-function shouldSkipMissingA2uiAssets(env = process.env): boolean {
+function shouldSkipMissingA2uiAssets(env = process.env) {
   return env.OPENCLAW_A2UI_SKIP_MISSING === "1" || Boolean(env.OPENCLAW_SPARSE_PROFILE);
 }
 
-export async function copyA2uiAssets({ srcDir, outDir }: { srcDir: string; outDir: string }) {
+export async function copyA2uiAssets({ srcDir, outDir }) {
   const skipMissing = shouldSkipMissingA2uiAssets(process.env);
   try {
     await fs.stat(path.join(srcDir, "index.html"));
