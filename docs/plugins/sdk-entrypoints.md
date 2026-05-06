@@ -140,9 +140,11 @@ export default defineChannelPluginEntry({
   memoizes the resolved schema on first access.
 - For plugin-owned root CLI commands, prefer `api.registerCli(..., { descriptors: [...] })`
   when you want the command to stay lazy-loaded without disappearing from the
-  root CLI parse tree. For nested plugin commands, add `parentPath` and register
-  commands on the `program` object passed to the registrar; OpenClaw resolves it
-  to the parent command before calling the plugin. For channel plugins, prefer
+  root CLI parse tree. For paired-node feature commands, prefer
+  `api.registerNodeCliFeature(...)` so the command lands under `openclaw nodes`.
+  For other nested plugin commands, add `parentPath` and register commands on
+  the `program` object passed to the registrar; OpenClaw resolves it to the
+  parent command before calling the plugin. For channel plugins, prefer
   registering those descriptors from `registerCliMetadata(...)` and keep
   `registerFull(...)` focused on runtime-only work.
 - If `registerFull(...)` also registers gateway RPC methods, keep them on a

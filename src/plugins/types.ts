@@ -2079,6 +2079,18 @@ export type OpenClawPluginCliCommandDescriptor = {
   hasSubcommands: boolean;
 };
 
+export type OpenClawPluginNodeCliFeatureOptions = {
+  /** Explicit node feature command names owned under `openclaw nodes`. */
+  commands?: string[];
+  /**
+   * Parse-time command descriptors for lazy node feature CLI registration.
+   *
+   * Descriptors are registered under `openclaw nodes`, so a descriptor named
+   * `"camera"` exposes `openclaw nodes camera`.
+   */
+  descriptors?: OpenClawPluginCliCommandDescriptor[];
+};
+
 export type OpenClawPluginReloadRegistration = {
   restartPrefixes?: string[];
   hotPrefixes?: string[];
@@ -2459,6 +2471,16 @@ export type OpenClawPluginApi = {
        */
       descriptors?: OpenClawPluginCliCommandDescriptor[];
     },
+  ) => void;
+  /**
+   * Register a plugin-owned node feature command group under `openclaw nodes`.
+   *
+   * This is equivalent to `registerCli(registrar, { parentPath: ["nodes"], ... })`
+   * and is intended for paired-node capabilities such as camera, screen, or Canvas.
+   */
+  registerNodeCliFeature: (
+    registrar: OpenClawPluginCliRegistrar,
+    opts?: OpenClawPluginNodeCliFeatureOptions,
   ) => void;
   registerReload: (registration: OpenClawPluginReloadRegistration) => void;
   registerNodeHostCommand: (command: OpenClawPluginNodeHostCommand) => void;

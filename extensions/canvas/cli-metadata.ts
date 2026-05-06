@@ -5,8 +5,7 @@ export default definePluginEntry({
   name: "Canvas",
   description: "Experimental Canvas control and A2UI rendering surfaces for paired nodes.",
   register(api) {
-    api.registerCli(() => {}, {
-      parentPath: ["nodes"],
+    api.registerNodeCliFeature(() => {}, {
       descriptors: [
         {
           name: "canvas",

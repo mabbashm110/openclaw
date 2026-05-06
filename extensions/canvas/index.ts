@@ -80,12 +80,11 @@ export default definePluginEntry({
         workspaceDir: ctx.workspaceDir,
       }),
     );
-    api.registerCli(
+    api.registerNodeCliFeature(
       ({ program }) => {
         registerNodesCanvasCommands(program, createDefaultCanvasCliDependencies());
       },
       {
-        parentPath: ["nodes"],
         descriptors: [
           {
             name: "canvas",

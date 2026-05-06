@@ -155,6 +155,7 @@ const noopOn: OpenClawPluginApi["on"] = () => {};
 
 export function buildPluginApi(params: BuildPluginApiParams): OpenClawPluginApi {
   const handlers = params.handlers ?? {};
+  const registerCli = handlers.registerCli ?? noopRegisterCli;
   return {
     id: params.id,
     name: params.name,
@@ -174,7 +175,12 @@ export function buildPluginApi(params: BuildPluginApiParams): OpenClawPluginApi 
       handlers.registerHostedMediaResolver ?? noopRegisterHostedMediaResolver,
     registerChannel: handlers.registerChannel ?? noopRegisterChannel,
     registerGatewayMethod: handlers.registerGatewayMethod ?? noopRegisterGatewayMethod,
-    registerCli: handlers.registerCli ?? noopRegisterCli,
+    registerCli,
+    registerNodeCliFeature: (registrar, opts) =>
+      registerCli(registrar, {
+        ...opts,
+        parentPath: ["nodes"],
+      }),
     registerReload: handlers.registerReload ?? noopRegisterReload,
     registerNodeHostCommand: handlers.registerNodeHostCommand ?? noopRegisterNodeHostCommand,
     registerNodeInvokePolicy: handlers.registerNodeInvokePolicy ?? noopRegisterNodeInvokePolicy,

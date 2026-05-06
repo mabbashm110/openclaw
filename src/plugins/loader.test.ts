@@ -4039,6 +4039,33 @@ module.exports = { id: "throws-after-import", register() {} };`,
           });
         },
       },
+      {
+        label: "registers node feature CLI commands under nodes",
+        pluginId: "node-cli-feature",
+        body: `module.exports = { id: "node-cli-feature", register(api) {
+  api.registerNodeCliFeature(() => {}, {
+    descriptors: [
+      {
+        name: "demo-node",
+        description: "Demo node feature",
+        hasSubcommands: true,
+      },
+    ],
+  });
+} };`,
+        assert: (registry: ReturnType<typeof loadOpenClawPlugins>) => {
+          expect(registry.cliRegistrars).toHaveLength(1);
+          expect(registry.cliRegistrars[0]?.parentPath).toEqual(["nodes"]);
+          expect(registry.cliRegistrars[0]?.commands).toEqual(["demo-node"]);
+          expect(registry.cliRegistrars[0]?.descriptors).toEqual([
+            {
+              name: "demo-node",
+              description: "Demo node feature",
+              hasSubcommands: true,
+            },
+          ]);
+        },
+      },
     ] as const;
 
     runSinglePluginRegistryScenarios(scenarios);

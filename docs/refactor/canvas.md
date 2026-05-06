@@ -48,6 +48,7 @@ Done:
 - Added generic plugin WebSocket upgrade dispatch for plugin-owned HTTP routes.
 - Replaced Canvas-specific gateway host URL and node capability auth with generic hosted plugin surface and node capability helpers.
 - Added plugin-owned hosted media resolvers so Canvas document URLs resolve through the Canvas plugin instead of core importing Canvas document internals.
+- Added `api.registerNodeCliFeature(...)` so Canvas can declare `openclaw nodes canvas` as a plugin-owned node feature without manually spelling the parent command path.
 - Removed production `src/**` imports of `extensions/canvas/runtime-api.js`.
 - Kept top-level `canvasHost` as a legacy read compatibility alias while doctor repairs old configs.
 - Updated generated plugin inventory to include Canvas.

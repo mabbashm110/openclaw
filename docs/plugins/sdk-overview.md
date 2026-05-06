@@ -117,6 +117,7 @@ provider- or plugin-specific policy to core prompt builders.
 | `api.registerGatewayMethod(name, handler)`     | Gateway RPC method                      |
 | `api.registerGatewayDiscoveryService(service)` | Local Gateway discovery advertiser      |
 | `api.registerCli(registrar, opts?)`            | CLI subcommand                          |
+| `api.registerNodeCliFeature(registrar, opts?)` | Node feature CLI under `openclaw nodes` |
 | `api.registerService(service)`                 | Background service                      |
 | `api.registerInteractiveHandler(registration)` | Interactive handler                     |
 | `api.registerAgentToolResultMiddleware(...)`   | Runtime tool-result middleware          |
@@ -221,6 +222,11 @@ own trust.
   routing, and lazy plugin CLI registration
 - `parentPath`: optional parent command path for nested command groups, such as
   `["nodes"]`
+
+For paired-node features, prefer
+`api.registerNodeCliFeature(registrar, opts?)`. It is a small wrapper around
+`api.registerCli(..., { parentPath: ["nodes"] })` and makes commands such as
+`openclaw nodes canvas` explicit plugin-owned node features.
 
 If you want a plugin command to stay lazy-loaded in the normal root CLI path,
 provide `descriptors` that cover every top-level command root exposed by that
