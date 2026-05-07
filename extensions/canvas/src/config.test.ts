@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   isCanvasHostEnabled,
   isCanvasPluginEnabled,
@@ -7,6 +7,16 @@ import {
 } from "./config.js";
 
 describe("Canvas plugin config", () => {
+  const originalSkipCanvasHost = process.env.OPENCLAW_SKIP_CANVAS_HOST;
+
+  afterEach(() => {
+    if (originalSkipCanvasHost === undefined) {
+      delete process.env.OPENCLAW_SKIP_CANVAS_HOST;
+    } else {
+      process.env.OPENCLAW_SKIP_CANVAS_HOST = originalSkipCanvasHost;
+    }
+  });
+
   it("parses host config from the plugin entry", () => {
     expect(
       parseCanvasPluginConfig({
@@ -66,5 +76,12 @@ describe("Canvas plugin config", () => {
     };
     expect(isCanvasPluginEnabled(config)).toBe(false);
     expect(isCanvasHostEnabled(config)).toBe(false);
+  });
+
+  it("honors truthy skip-canvas env values before host registration", () => {
+    for (const value of ["1", "true", " yes ", "ON"]) {
+      process.env.OPENCLAW_SKIP_CANVAS_HOST = value;
+      expect(isCanvasHostEnabled()).toBe(false);
+    }
   });
 });

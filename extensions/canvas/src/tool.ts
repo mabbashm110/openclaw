@@ -39,6 +39,10 @@ type CanvasSnapshotPayload = {
   base64: string;
 };
 
+type CanvasImageSanitizationLimits = {
+  maxDimensionPx?: number;
+};
+
 function readGatewayCallOptions(params: Record<string, unknown>) {
   return {
     gatewayUrl: readStringParam(params, "gatewayUrl", { trim: false }),
@@ -77,17 +81,38 @@ async function writeBase64ToTempFile(params: { base64: string; ext: string }): P
   return filePath;
 }
 
+function isPathInsideRoot(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return (
+    relative === "" || (!!relative && !relative.startsWith("..") && !path.isAbsolute(relative))
+  );
+}
+
 async function readJsonlFromPath(jsonlPath: string, workspaceDir?: string): Promise<string> {
   const trimmed = jsonlPath.trim();
   if (!trimmed) {
     return "";
   }
-  const resolved = path.resolve(workspaceDir ?? process.cwd(), trimmed);
   const workspaceRoot = path.resolve(workspaceDir ?? process.cwd());
-  if (resolved !== workspaceRoot && !resolved.startsWith(`${workspaceRoot}${path.sep}`)) {
+  const resolved = path.resolve(workspaceRoot, trimmed);
+  const [workspaceReal, resolvedReal] = await Promise.all([
+    fs.realpath(workspaceRoot),
+    fs.realpath(resolved),
+  ]);
+  if (!isPathInsideRoot(workspaceReal, resolvedReal)) {
     throw new Error("jsonlPath outside workspace");
   }
-  return await fs.readFile(resolved, "utf8");
+  return await fs.readFile(resolvedReal, "utf8");
+}
+
+function resolveCanvasImageSanitizationLimits(
+  config?: OpenClawConfig,
+): CanvasImageSanitizationLimits {
+  const configured = config?.agents?.defaults?.imageMaxDimensionPx;
+  if (typeof configured !== "number" || !Number.isFinite(configured)) {
+    return {};
+  }
+  return { maxDimensionPx: Math.max(1, Math.floor(configured)) };
 }
 
 // Flattened schema: runtime validates per-action requirements.
@@ -113,6 +138,7 @@ const CanvasToolSchema = Type.Object({
 });
 
 export function createCanvasTool(options?: CanvasToolOptions): AnyAgentTool {
+  const imageSanitization = resolveCanvasImageSanitizationLimits(options?.config);
   return {
     label: "Canvas",
     name: "canvas",
@@ -218,6 +244,7 @@ export function createCanvasTool(options?: CanvasToolOptions): AnyAgentTool {
             label: "canvas:snapshot",
             path: filePath,
             details: { format: payload.format },
+            imageSanitization,
           });
         }
         case "a2ui_push": {

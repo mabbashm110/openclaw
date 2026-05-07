@@ -4,6 +4,7 @@ import {
   resolveEffectiveEnableState,
   resolvePluginConfigObject,
 } from "openclaw/plugin-sdk/plugin-config-runtime";
+import { isTruthyEnvValue } from "openclaw/plugin-sdk/runtime-env";
 
 export type CanvasHostConfig = {
   enabled?: boolean;
@@ -87,7 +88,7 @@ export function resolveCanvasHostConfig(params: {
 }
 
 export function isCanvasHostEnabled(config?: OpenClawConfig): boolean {
-  if (process.env.OPENCLAW_SKIP_CANVAS_HOST === "1") {
+  if (isTruthyEnvValue(process.env.OPENCLAW_SKIP_CANVAS_HOST)) {
     return false;
   }
   if (!isCanvasPluginEnabled(config)) {
